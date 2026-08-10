@@ -1,3 +1,35 @@
+# Entorno y Secretos (Jamás committear)
 .env
+*.env
+.env.local
+
+# Entornos Virtuales y Dependencias
 .venv/
+venv/
+env/
+node_modules/
+
+# Caché y Archivos Compilados
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+.cache/
+
+# Archivos de Sistema Operativo e IDEs
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs y Archivos Temporales
+*.log
+.agente_audit.log
+scratch/
+*.zip
+*.tar.gz
