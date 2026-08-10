@@ -157,6 +157,8 @@ def revisar_codigo(codigo: str) -> Dict[str, Any]:
     cantidad_funciones = 0
     cantidad_clases = 0
 
+    is_js_ts = any(kw in codigo for kw in ("import ", "export ", "const ", "let ", "interface ", "type ", "function ", "React", "describe(", "it(", "<html", "document.", "require("))
+
     try:
         tree = ast.parse(codigo)
 
@@ -177,8 +179,14 @@ def revisar_codigo(codigo: str) -> Dict[str, Any]:
                     hallazgos.append(f"Línea {node.lineno}: Captura de excepción genérica ('except:'). Es mejor especificar la excepción.")
 
     except SyntaxError as syn_err:
-        sintaxis_valida = False
-        hallazgos.append(f"Error de sintaxis en la línea {syn_err.lineno}, columna {syn_err.offset}: {syn_err.msg}")
+        if is_js_ts:
+            sintaxis_valida = True
+            hallazgos.append(
+                "revisar_codigo es un analizador AST de Python. Para proyectos TypeScript/JavaScript, utiliza 'tsc --noEmit' o 'node <archivo>' mediante ejecutar_comando_bash."
+            )
+        else:
+            sintaxis_valida = False
+            hallazgos.append(f"Error de sintaxis en la línea {syn_err.lineno}, columna {syn_err.offset}: {syn_err.msg}")
 
     if len(lineas) > 150:
         hallazgos.append(f"El archivo es extenso ({len(lineas)} líneas). Considera modularizar.")
@@ -894,7 +902,8 @@ def buscar_en_proyecto(
 
 def ejecutar_comando_bash(
     comando: str,
-    timeout_sec: int = 15
+    timeout_sec: int = 15,
+    cwd: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Ejecuta de forma aislada y segura un comando de consola Bash dentro del workspace.
@@ -902,9 +911,11 @@ def ejecutar_comando_bash(
     Args:
         comando: Comando de consola a ejecutar (ej. 'pytest', 'git status', 'ls').
         timeout_sec: Tiempo límite de ejecución en segundos (por defecto 15s, máximo 30s).
+        cwd: Directorio de trabajo en el workspace (opcional, ej. 'StudyHub/server').
     """
     return command_sanitizer.ejecutar_comando(
         raw_command=comando,
         timeout_sec=timeout_sec,
-        aprobar_confirmacion=False
+        aprobar_confirmacion=False,
+        cwd=cwd,
     )

@@ -148,16 +148,45 @@ class SandboxManager:
 
         return False
 
+    def validate_container_cwd(self, cwd: Optional[str]) -> str:
+        """
+        Valida que la ruta de directorio de trabajo proporcionada sea segura
+        y se resuelva estrictamente dentro de /workspace. Retorna la ruta
+        del contenedor '/workspace/...'.
+        """
+        if not cwd or cwd in ("/", "/workspace", ".", "./"):
+            return SANDBOX_WORKDIR
+
+        cwd_str = str(cwd).strip()
+        if cwd_str.startswith("/workspace"):
+            rel_part = cwd_str[len("/workspace"):].lstrip("/")
+        else:
+            rel_part = cwd_str
+
+        if not rel_part or rel_part == ".":
+            return SANDBOX_WORKDIR
+
+        try:
+            target_path = (self.workspace_root / rel_part).resolve()
+            if not target_path.is_relative_to(self.workspace_root):
+                raise ValueError("Ruta fuera del workspace")
+            rel_resolved = target_path.relative_to(self.workspace_root)
+            return f"{SANDBOX_WORKDIR}/{rel_resolved}" if str(rel_resolved) != "." else SANDBOX_WORKDIR
+        except Exception:
+            raise ValueError(f"Acceso denegado: El directorio de trabajo '{cwd}' se resuelve fuera del workspace.")
+
     def _build_docker_command(
         self,
         tokens: List[str],
         env: Dict[str, str],
+        cwd: Optional[str] = None,
     ) -> List[str]:
         """
         Construye la lista de argumentos para `docker run` con todas las
         restricciones de seguridad, montajes y límites de recursos.
         """
         container_name = f"{SANDBOX_CONTAINER_PREFIX}_{int(time.time() * 1000)}_{uuid.uuid4().hex[:8]}"
+        workdir = self.validate_container_cwd(cwd)
 
         # Determinar cuál imagen usar (prioridad muss_code_sandbox:latest)
         target_image = SANDBOX_IMAGE if self.ensure_sandbox_image() else FALLBACK_SANDBOX_IMAGE
@@ -166,7 +195,7 @@ class SandboxManager:
             "docker", "run",
             "--rm",                                     # Destruir tras ejecución
             "--name", container_name,
-            "--workdir", SANDBOX_WORKDIR,
+            "--workdir", workdir,
             "--user", "1000:1000",                      # Usuario sin privilegios
             "--memory", SANDBOX_LIMITS["memory"],
             "--cpus", SANDBOX_LIMITS["cpus"],
@@ -213,28 +242,38 @@ class SandboxManager:
         """
         Retorna el mapa {nombre_paquete: ruta_tarball} obtenido de /var/pkg-store/index.json
         dentro del contenedor. Si no está disponible, retorna un diccionario vacío.
+        El resultado se cachea para evitar llamadas repetidas a cat.
         """
+        if getattr(self, "_offline_pkg_map", None) is not None:
+            return self._offline_pkg_map
+
         res = self.execute(["cat", "/var/pkg-store/index.json"])
         if not res.get("error") and res.get("stdout"):
             import json
             try:
-                return json.loads(res["stdout"])
+                pkg_map = json.loads(res["stdout"])
+                if isinstance(pkg_map, dict):
+                    self._offline_pkg_map = pkg_map
+                    return self._offline_pkg_map
             except Exception:
                 pass
-        return {}
+        self._offline_pkg_map = {}
+        return self._offline_pkg_map
 
     def execute(
         self,
         tokens: List[str],
         timeout_sec: int = SANDBOX_LIMITS["timeout_default"],
+        cwd: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Ejecuta tokens dentro de un contenedor Docker aislado.
+        Ejecuta tokens dentro de un contenedor Docker aislado en el directorio de trabajo especificado.
         Política fail-closed: si Docker no está disponible, NO ejecuta nada.
 
         Args:
             tokens: Lista de tokens del comando a ejecutar.
             timeout_sec: Tiempo límite en segundos.
+            cwd: Directorio de trabajo en el workspace (ej. 'StudyHub/server' o '/workspace/StudyHub/server').
 
         Returns:
             Dict con stdout, stderr, codigo_salida, tiempo, etc.
@@ -250,6 +289,15 @@ class SandboxManager:
                 ),
             }
 
+        try:
+            container_workdir = self.validate_container_cwd(cwd)
+        except ValueError as val_err:
+            return {
+                "error": True,
+                "codigo_error": "FUERA_DEL_WORKSPACE",
+                "mensaje": str(val_err),
+            }
+
         timeout_final = max(1, min(int(timeout_sec), SANDBOX_LIMITS["timeout_max"]))
         env = self._get_sandbox_env()
         max_output = SANDBOX_LIMITS["max_output_chars"]
@@ -257,6 +305,7 @@ class SandboxManager:
         docker_cmd = self._build_docker_command(
             tokens=tokens,
             env=env,
+            cwd=container_workdir,
         )
 
         start_time = time.time()

@@ -7,8 +7,10 @@ COPY --from=node:22-slim /usr/local/lib/node_modules /usr/local/lib/node_modules
 RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
     ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
 
-# Instalar git para empaquetamiento npm
-RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+# Instalar git para empaquetamiento npm y configurar npm para lectura directa del cache y logs en /tmp
+RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/* && \
+    npm config set cache /var/pkg-cache --global && \
+    npm config set logs-dir /tmp/_logs --global
 
 # 2. Instalar CLIs globales de desarrollo, build, linting y testing
 RUN npm install -g \
@@ -25,17 +27,28 @@ RUN npm install -g \
 
 # 3. Poblar almacén offline /var/pkg-store y caché global pre-poblada /var/pkg-cache
 WORKDIR /tmp/npm-pack
-RUN npm config set cache /var/pkg-cache --global && \
-    npm init -y && \
-    npm install \
+RUN npm init -y && \
+    npm install --no-audit --no-fund \
         express \
         @types/express \
         @types/node \
-        rxjs \
-        reflect-metadata \
+        react \
+        react-dom \
+        @types/react \
+        @types/react-dom \
+        vite \
+        vitest \
+        next \
         @nestjs/core \
         @nestjs/common \
-        dotenv && \
+        @nestjs/platform-express \
+        rxjs \
+        dotenv \
+        cors \
+        mongoose \
+        prisma \
+        @prisma/client \
+        reflect-metadata && \
     mkdir -p /var/pkg-store && \
     node -e ' \
       const fs = require("fs"); \

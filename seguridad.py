@@ -11,6 +11,59 @@ from typing import Dict, Any, Union, Optional, List
 from sandbox import SandboxManager
 
 
+NODE_BUILTIN_MODULES = {
+    "assert", "buffer", "child_process", "cluster", "console", "crypto",
+    "dgram", "dns", "domain", "events", "fs", "http", "https", "net",
+    "os", "path", "punycode", "querystring", "readline", "stream",
+    "string_decoder", "timers", "tls", "tty", "url", "util", "v8",
+    "vm", "zlib", "worker_threads", "readline/promises", "stream/promises",
+    "fs/promises", "node:assert", "node:buffer", "node:child_process",
+    "node:crypto", "node:events", "node:fs", "node:http", "node:https",
+    "node:net", "node:os", "node:path", "node:process", "node:stream",
+    "node:url", "node:util", "node:zlib"
+}
+
+
+def _extract_missing_module_name(output: str) -> Optional[str]:
+    """
+    Extrae el nombre del paquete/dependencia faltante desde la salida de Node.js / Python.
+    Soporta patrones estándar como:
+    - Error: Cannot find module 'express'
+    - Error: Cannot find module '@nestjs/core'
+    - Cannot find module 'react-dom' or its corresponding type declarations
+    - ModuleNotFoundError: No module named 'flask'
+    Ignora módulos nativos/built-in de Node.js y rutas relativas/absolutas (ej. ./app.js).
+    """
+    if not output or not isinstance(output, str):
+        return None
+
+    # Patrón 1: Error: Cannot find module 'express' / '@nestjs/core' / 'react-dom/server'
+    m = re.search(r"Cannot find module ['\"]([^'\"]+)['\"]", output, re.IGNORECASE)
+    if m:
+        mod_path = m.group(1).strip()
+        if mod_path.startswith(".") or mod_path.startswith("/"):
+            return None
+        parts = mod_path.split("/")
+        if mod_path.startswith("@") and len(parts) >= 2:
+            pkg = f"{parts[0]}/{parts[1]}"
+        else:
+            pkg = parts[0]
+
+        if pkg in NODE_BUILTIN_MODULES:
+            return None
+        return pkg
+
+    # Patrón 2: ModuleNotFoundError: No module named 'flask'
+    m2 = re.search(r"ModuleNotFoundError:\s*No module named ['\"]([^'\"]+)['\"]", output, re.IGNORECASE)
+    if m2:
+        mod_name = m2.group(1).strip()
+        if not mod_name.startswith("."):
+            pkg = mod_name.split(".")[0]
+            return pkg
+
+    return None
+
+
 class WorkspaceManager:
     """
     Gestor de seguridad centralizado para el aislamiento de rutas (Sandbox del Workspace).
@@ -410,15 +463,129 @@ class CommandSanitizer:
         return False
 
     @classmethod
-    def _is_informational_command(cls, tokens: List[str], executable_name: str) -> bool:
-        """Reconoce consultas exactas que no cambian el estado del sandbox."""
-        if executable_name == "which":
-            return all(not token.startswith("-") for token in tokens[1:])
-        if executable_name in cls.VERSION_COMMANDS:
-            return len(tokens) == 2 and tokens[1] in ("--version", "-v", "-V")
-        return executable_name == "git" and len(tokens) == 2 and tokens[1] == "--version"
+    def _is_network_command(cls, tokens: List[str], executable_name: str) -> bool:
+        """Identifica comandos que intentan acceder a la red (desactivada en sandbox con --network none)."""
+        if executable_name in ("curl", "wget", "ping", "nc", "ncat", "netcat", "telnet"):
+            return True
+        if executable_name == "npm" and len(tokens) >= 2:
+            subcmd = tokens[1].lower()
+            if subcmd in ("ping", "search"):
+                return True
+            if subcmd in ("view", "info") and "--offline" not in [t.lower() for t in tokens]:
+                return True
+        return False
 
-    def validar_y_clasificar(self, raw_command: Any) -> Dict[str, Any]:
+    @classmethod
+    def _is_read_only_env_check(cls, tokens: List[str], executable_name: str) -> bool:
+        """Determina si un comando es una consulta informativa de solo lectura del entorno sin efectos secundarios."""
+        if executable_name in ("pwd", "dir", "ls"):
+            return True
+        if executable_name in ("which", "whereis"):
+            return len(tokens) > 1 and all(not t.startswith("-") for t in tokens[1:])
+        if executable_name == "command" and len(tokens) >= 2 and tokens[1] == "-v":
+            return True
+        if executable_name in ("du", "df", "file", "stat", "cat", "head", "tail", "grep", "wc", "less", "more"):
+            return True
+        if executable_name == "find":
+            forbidden_flags = {"-delete", "-exec", "-execdir", "-ok", "-okdir", "-fls", "-fprint"}
+            return not any(t.lower() in forbidden_flags for t in tokens[1:])
+        if executable_name == "sed":
+            return not any(t in ("-i", "--in-place") or t.startswith("-i") for t in tokens[1:])
+
+        if executable_name in ("node", "npm", "npx", "python", "python3", "pip", "pip3", "tsc", "tsx", "ts-node", "vite", "vitest", "pytest", "nest", "eslint", "prettier"):
+            if len(tokens) >= 2 and tokens[1] in ("--version", "-v", "-V", "version", "--help", "-h"):
+                return True
+
+        if executable_name == "git" and len(tokens) >= 2:
+            subcmd = tokens[1].lower()
+            if subcmd in ("--version", "version", "status", "diff", "log", "branch", "show", "tag"):
+                return True
+
+        if executable_name == "npm":
+            tokens_lower = [t.lower() for t in tokens]
+            if len(tokens) >= 2:
+                subcmd = tokens_lower[1]
+                if subcmd in ("prefix", "root", "help", "version", "v"):
+                    return True
+                if subcmd in ("list", "ls", "ll", "la"):
+                    return True
+                if subcmd in ("view", "info", "show"):
+                    return True
+                if subcmd == "config" and len(tokens) >= 3 and tokens_lower[2] == "get":
+                    return True
+                if subcmd == "cache":
+                    return True
+
+        return False
+
+    @staticmethod
+    def is_valid_npm_package_name(pkg_name: str) -> bool:
+        """
+        Valida si un nombre de paquete npm es formalmente válido.
+        Garantiza que un scope puro (ej. '@testing-library' o '@nestjs') NO sea tratado como paquete.
+        Un scope válido debe incluir '/' y el nombre del paquete (ej. '@testing-library/react').
+        """
+        if not pkg_name or not isinstance(pkg_name, str):
+            return False
+        pkg = pkg_name.strip()
+        if not pkg:
+            return False
+        if pkg.startswith("@"):
+            parts = pkg.split("/")
+            if len(parts) != 2 or not parts[0][1:].strip() or not parts[1].strip():
+                return False
+            return True
+        if "/" in pkg or " " in pkg or "\\" in pkg:
+            return False
+        return True
+
+    @classmethod
+    def _is_verification_command(cls, tokens: List[str], executable_name: str) -> bool:
+        """Identifica ejecuciones de prueba, análisis de tipos, compilación y ejecuciones en sandbox."""
+        if executable_name == "pytest" or (executable_name in ("python", "python3") and len(tokens) >= 3 and tokens[1] == "-m" and tokens[2] in ("pytest", "unittest")):
+            return True
+        if executable_name in ("vitest", "jest"):
+            return True
+        if executable_name == "tsc":
+            return True
+        if executable_name in ("node", "python", "python3"):
+            return True
+        if executable_name == "npm" and len(tokens) >= 2:
+            subcmd = tokens[1].lower()
+            if subcmd in ("test", "t", "run", "start"):
+                return True
+        if executable_name in ("vite", "nest") and len(tokens) >= 2 and tokens[1].lower() in ("build", "check", "dev", "start"):
+            return True
+        return False
+
+    @classmethod
+    def _is_mutating_command(cls, tokens: List[str], executable_name: str) -> bool:
+        """Determina si un comando modifica deliberadamente el sistema, el workspace o el entorno."""
+        if executable_name in ("rm", "mv", "cp", "rmdir", "chmod", "chown"):
+            return True
+        if executable_name in ("pip", "pip3") and len(tokens) >= 2:
+            return tokens[1].lower() in ("install", "uninstall")
+        if executable_name in ("apt", "apt-get") and len(tokens) >= 2:
+            return tokens[1].lower() in ("install", "remove", "purge", "update", "upgrade")
+        if executable_name == "npm" and len(tokens) >= 2:
+            return tokens[1].lower() in ("install", "i", "uninstall", "remove", "update", "upgrade", "ci", "audit", "link", "unlink", "publish")
+        if executable_name == "git" and len(tokens) >= 2:
+            return tokens[1].lower() in ("reset", "checkout", "clean", "merge", "rebase", "pull", "push", "commit")
+        return False
+
+    @classmethod
+    def _extract_npm_package_name(cls, tokens: List[str]) -> Optional[str]:
+        """Extrae el nombre del paquete de los argumentos de un comando npm."""
+        if len(tokens) < 3:
+            return None
+        subcmd = tokens[1].lower()
+        if subcmd in ("view", "info", "install", "i", "show"):
+            for t in tokens[2:]:
+                if not t.startswith("-") and t.lower() not in ("version", "versions"):
+                    return t
+        return None
+
+    def validar_y_clasificar(self, raw_command: Any, cwd: Optional[str] = None) -> Dict[str, Any]:
         """
         Valida, tokeniza y clasifica un comando enviando argumentos de ruta a WorkspaceManager.
         """
@@ -454,8 +621,65 @@ class CommandSanitizer:
         if not tokens:
             return {"valido": False, "codigo_error": "COMANDO_VACIO", "mensaje": "No se encontraron tokens en el comando."}
 
+        # Interceptación de 'cd' como cambio de directorio de trabajo estructurado
+        if tokens[0].lower() == "cd":
+            target_arg = tokens[1] if len(tokens) > 1 else ""
+            if not target_arg or target_arg in ("~", "/workspace"):
+                rel_path = ""
+            else:
+                base = (self.workspace_root / cwd) if (cwd and str(cwd).strip() not in ("/", "/workspace", ".")) else self.workspace_root
+                target_full = (base / target_arg).resolve()
+                try:
+                    if not target_full.is_relative_to(self.workspace_root):
+                        return {
+                            "valido": False,
+                            "codigo_error": "FUERA_DEL_WORKSPACE",
+                            "mensaje": f"Acceso denegado: El directorio '{target_arg}' se resuelve fuera de /workspace."
+                        }
+                    if not target_full.exists():
+                        return {
+                            "valido": False,
+                            "codigo_error": "RUTA_NO_EXISTE",
+                            "mensaje": f"El directorio '{target_arg}' no existe en el workspace."
+                        }
+                    if not target_full.is_dir():
+                        return {
+                            "valido": False,
+                            "codigo_error": "NO_ES_DIRECTORIO",
+                            "mensaje": f"'{target_arg}' es un archivo, no un directorio."
+                        }
+                    rel_resolved = target_full.relative_to(self.workspace_root)
+                    rel_path = str(rel_resolved) if str(rel_resolved) != "." else ""
+                except Exception as e:
+                    return {
+                        "valido": False,
+                        "codigo_error": "RUTA_INVALIDA",
+                        "mensaje": f"Error validando directorio de trabajo '{target_arg}': {str(e)}"
+                    }
+
+            return {
+                "valido": True,
+                "is_cd": True,
+                "new_cwd": rel_path,
+                "mensaje": f"Directorio de trabajo cambiado a: /workspace/{rel_path}" if rel_path else "Directorio de trabajo cambiado a: /workspace",
+                "clasificacion": "READ_ONLY",
+                "requiere_confirmacion": False
+            }
+
         executable_token = tokens[0].lower()
         executable_name = Path(executable_token).name
+
+        # Interceptación explícita de comandos de red (NETWORK_BLOCKED)
+        if self._is_network_command(tokens, executable_name):
+            self.audit_logger.log("CommandSanitizer", "NETWORK", "BLOQUEADO", cmd_str, "Acceso a red desactivado (--network none)")
+            return {
+                "valido": False,
+                "codigo_error": "NETWORK_BLOCKED",
+                "mensaje": f"El comando '{cmd_str}' fue bloqueado porque la red está desactivada en el sandbox Docker (--network none).",
+                "clasificacion": "NETWORK"
+            }
+
+        is_read_only = self._is_read_only_env_check(tokens, executable_name)
 
         is_python_test = False
 
@@ -505,33 +729,28 @@ class CommandSanitizer:
                         "mensaje": f"El flag de git '{t}' está prohibido por riesgo de seguridad."
                     }
 
-        # 6. Invocaciones de Python (ej: python -c "..." o python script.py)
-        if executable_name in ("python", "python3"):
-            if len(tokens) > 1 and tokens[1] == "-c":
-                self.audit_logger.log("CommandSanitizer", "PROHIBIDO", "BLOQUEADO", cmd_str, "python -c prohibido")
-                return {
-                    "valido": False,
-                    "codigo_error": "COMANDO_NO_PERMITIDO",
-                    "mensaje": "La ejecución arbitraria inline ('python -c') no está permitida."
-                }
-            if len(tokens) > 2 and tokens[1] == "-m" and tokens[2] in ("pytest", "unittest"):
-                is_python_test = True
-            elif len(tokens) > 1 and not tokens[1].startswith("-"):
-                script_path_token = tokens[1]
-                val_script = self.workspace_manager.validar_ruta(script_path_token, must_exist=True)
-                if not val_script["valida"]:
-                    self.audit_logger.log("CommandSanitizer", "INVALID_PATH", "BLOQUEADO", cmd_str, val_script["mensaje"])
+        # 6. Manejo especial para creación segura de directorios (mkdir en /workspace)
+        if executable_name == "mkdir":
+            dir_args = [t for t in tokens[1:] if not t.startswith("-")]
+            if not dir_args:
+                return {"valido": False, "codigo_error": "ARGUMENTO_VACIO", "mensaje": "mkdir requiere al menos una ruta de directorio."}
+            all_inside = True
+            for dir_arg in dir_args:
+                val_dir = self.workspace_manager.validar_ruta(dir_arg, is_creation=True, cwd=cwd)
+                if not val_dir["valida"]:
+                    all_inside = False
                     return {
                         "valido": False,
-                        "codigo_error": val_script.get("codigo_error", "ARGUMENTO_DE_RUTA_INVALIDO"),
-                        "mensaje": f"El script Python '{script_path_token}' no es válido: {val_script['mensaje']}"
+                        "codigo_error": val_dir.get("codigo_error", "FUERA_DEL_WORKSPACE"),
+                        "mensaje": f"No se puede crear el directorio '{dir_arg}': {val_dir['mensaje']}"
                     }
+            if all_inside:
                 return {
                     "valido": True,
-                    "requiere_confirmacion": True,
+                    "requiere_confirmacion": False,
                     "tokens": tokens,
                     "comando_limpio": cmd_str,
-                    "clasificacion": "script_python"
+                    "clasificacion": "WORKSPACE_SAFE_MUTATION"
                 }
 
         # 7. Validar argumentos de ruta para binarios estándar
@@ -539,7 +758,7 @@ class CommandSanitizer:
             if token.startswith("-"):
                 continue
             if "/" in token or ("." in token and not token.isdigit()):
-                val_arg = self.workspace_manager.validar_ruta(token)
+                val_arg = self.workspace_manager.validar_ruta(token, cwd=cwd)
                 if not val_arg["valida"] and val_arg["codigo_error"] in ("FUERA_DEL_WORKSPACE", "ARCHIVO_PROTEGIDO"):
                     self.audit_logger.log("CommandSanitizer", "ARG_OUT_OF_BOUNDS", "BLOQUEADO", cmd_str, val_arg["mensaje"])
                     return {
@@ -548,22 +767,21 @@ class CommandSanitizer:
                         "mensaje": f"El argumento de ruta '{token}' fue denegado: {val_arg['mensaje']}"
                     }
 
-        # 8. Clasificar según necesidad de confirmación
-        if self._is_informational_command(tokens, executable_name):
-            requiere_confirmacion = False
-        elif is_python_test or executable_name == "pytest":
-            requiere_confirmacion = False
-        elif executable_name == "git":
-            subcmd = tokens[1].lower() if len(tokens) > 1 else ""
-            if subcmd in ("status", "diff", "log"):
-                requiere_confirmacion = False
-            else:
-                requiere_confirmacion = True
-        elif executable_name in ("pip", "pip3", "npm", "rm", "mv", "cp", "mkdir", "rmdir"):
+        # 8. Clasificación estricta por categorías de seguridad (Prioridad estricta: MUTATING > READ_ONLY > VERIFICATION)
+        if self._is_mutating_command(tokens, executable_name):
+            clasificacion = "MUTATING"
             requiere_confirmacion = True
-        elif executable_name in self.ALLOWED_BINARIES:
+        elif is_read_only:
+            clasificacion = "READ_ONLY"
+            requiere_confirmacion = False
+        elif self._is_verification_command(tokens, executable_name):
+            clasificacion = "VERIFICATION"
+            requiere_confirmacion = False
+        elif is_python_test or executable_name in self.ALLOWED_BINARIES:
+            clasificacion = "VERIFICATION"
             requiere_confirmacion = False
         else:
+            clasificacion = "MUTATING"
             requiere_confirmacion = True
 
         return {
@@ -571,26 +789,39 @@ class CommandSanitizer:
             "requiere_confirmacion": requiere_confirmacion,
             "tokens": tokens,
             "comando_limpio": cmd_str,
-            "clasificacion": "binario_estandar"
+            "clasificacion": clasificacion
         }
 
     def ejecutar_comando(
         self,
         raw_command: str,
         timeout_sec: int = 15,
-        aprobar_confirmacion: bool = False
+        aprobar_confirmacion: bool = False,
+        cwd: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Ejecuta un comando exclusivamente dentro del sandbox Docker.
         Política fail-closed: si Docker no está disponible, NO ejecuta
         el comando en el host. Retorna SANDBOX_NO_DISPONIBLE.
         """
-        evaluacion = self.validar_y_clasificar(raw_command)
+        evaluacion = self.validar_y_clasificar(raw_command, cwd=cwd)
         if not evaluacion["valido"]:
             return {
                 "error": True,
                 "codigo_error": evaluacion["codigo_error"],
                 "mensaje": evaluacion["mensaje"]
+            }
+
+        if evaluacion.get("is_cd"):
+            return {
+                "error": False,
+                "codigo_salida": 0,
+                "is_cd": True,
+                "new_cwd": evaluacion["new_cwd"],
+                "stdout": evaluacion["mensaje"],
+                "stderr": "",
+                "mensaje": evaluacion["mensaje"],
+                "sandbox": False
             }
 
         if evaluacion["requiere_confirmacion"] and not aprobar_confirmacion:
@@ -622,15 +853,75 @@ class CommandSanitizer:
                 )
             }
 
+        # ── Si es npm install/ci, envolver para usar cacache offline pre-cargado mediante simlinks ──────
+        exec_name = Path(tokens[0]).name.lower()
+        subcmd = tokens[1].lower() if len(tokens) > 1 else ""
+        if exec_name == "npm" and subcmd in ("install", "i", "ci") and "--cache" not in tokens:
+            npm_args = " ".join(shlex.quote(t) for t in tokens[2:])
+            if "--offline" in npm_args:
+                npm_args = npm_args.replace("--offline", "--prefer-offline")
+            elif "--prefer-offline" not in npm_args:
+                npm_args = f"--prefer-offline {npm_args}"
+
+            tokens = [
+                "sh", "-c",
+                f"mkdir -p /tmp/_logs /tmp/pkg-cache/_cacache/tmp && "
+                f"ln -sf /var/pkg-cache/_cacache/content /tmp/pkg-cache/_cacache/content 2>/dev/null; "
+                f"ln -sf /var/pkg-cache/_cacache/index-v5 /tmp/pkg-cache/_cacache/index-v5 2>/dev/null; "
+                f"npm install --cache /tmp/pkg-cache --logs-dir /tmp/_logs {npm_args}"
+            ]
+
         # ── Ejecución dentro del sandbox Docker ──────────────────
         self.audit_logger.log(
-            "CommandSanitizer", "SANDBOX", "EJECUTANDO", cmd_str, "Docker sandbox"
+            "CommandSanitizer", "SANDBOX", "EJECUTANDO", cmd_str, f"Docker sandbox (cwd={cwd})"
         )
         result = self.sandbox_manager.execute(
             tokens=tokens,
             timeout_sec=timeout_final,
+            cwd=cwd,
         )
         result["requirio_confirmacion"] = evaluacion["requiere_confirmacion"]
+        result["clasificacion"] = evaluacion.get("clasificacion")
+
+        # ── Detección de dependencia no disponible o no instalada (ENOTCACHED / MODULE_NOT_FOUND) ──
+        if result.get("error"):
+            combined_output = f"{result.get('stdout', '')}\n{result.get('stderr', '')}"
+            if "ENOSPC" in combined_output or "no space left on device" in combined_output:
+                result["codigo_error"] = "STORAGE_LIMIT_EXCEEDED"
+                result["mensaje"] = f"Límite de almacenamiento excedido en el sandbox: {combined_output.strip()}"
+            elif any(err_kw in combined_output for err_kw in ("EINVALIDTAGNAME", "Invalid tag name", "EINVAL", "ENOPKG")):
+                result["codigo_error"] = "INVALID_ENVIRONMENT_QUERY"
+                result["mensaje"] = f"Consulta de entorno o etiqueta de paquete inválida: {combined_output.strip()}"
+            elif "ENOTCACHED" in combined_output:
+                pkg_name = self._extract_npm_package_name(evaluacion.get("tokens", tokens))
+                result["codigo_error"] = "DEPENDENCIA_NO_DISPONIBLE_OFFLINE"
+                result["paquete_faltante"] = pkg_name
+                if pkg_name:
+                    result["mensaje"] = f"La dependencia '{pkg_name}' no está disponible en el almacén offline."
+                else:
+                    result["mensaje"] = "La dependencia solicitada no está disponible en el almacén offline."
+            else:
+                missing_pkg = _extract_missing_module_name(combined_output)
+                if missing_pkg:
+                    pkg_map = self.sandbox_manager.get_offline_package_map()
+                    if missing_pkg in pkg_map:
+                        tarball_path = pkg_map[missing_pkg]
+                        result["codigo_error"] = "DEPENDENCIA_NO_INSTALADA"
+                        result["paquete_faltante"] = missing_pkg
+                        result["tarball_offline"] = tarball_path
+                        result["mensaje"] = (
+                            f"La dependencia '{missing_pkg}' no está instalada en el proyecto. "
+                            f"Existe un paquete offline disponible en '{tarball_path}'. "
+                            f"Puedes instalarla localmente ejecutando 'npm install {tarball_path}'."
+                        )
+                    else:
+                        result["codigo_error"] = "DEPENDENCIA_NO_DISPONIBLE_OFFLINE"
+                        result["paquete_faltante"] = missing_pkg
+                        result["mensaje"] = (
+                            f"La dependencia '{missing_pkg}' no está instalada y no se encuentra disponible "
+                            "en el almacén offline del sandbox."
+                        )
+
         self.audit_logger.log(
             "CommandSanitizer",
             "SANDBOX",

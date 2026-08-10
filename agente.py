@@ -6,7 +6,7 @@ import shlex
 import hashlib
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, Any, Optional, Callable
+from typing import Dict, Any, Optional, Callable, List
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -136,8 +136,9 @@ class TaskExecutionState:
     verification_required: bool = False
     verification_possible: bool = True
     verification_completed: bool = False
-    verification_status: str = "PENDING"  # PENDING, PASSED, FAILED, RUNTIMES_UNAVAILABLE, SKIPPED
+    verification_status: str = "PENDING"  # PENDING, PASSED, FAILED, RUNTIMES_UNAVAILABLE, ENVIRONMENT_BLOCKED, SECURITY_BLOCKED, NETWORK_BLOCKED, VERIFICATION_UNAVAILABLE, SKIPPED
     last_verification_output: str = ""
+    failure_evidences: List[str] = field(default_factory=list)
     stop_reason: Optional[str] = None
 
     def start_task(self, goal: str, requires_verification: bool = False) -> None:
@@ -150,6 +151,7 @@ class TaskExecutionState:
         self.verification_completed = False
         self.verification_status = "PENDING" if requires_verification else "SKIPPED"
         self.last_verification_output = ""
+        self.failure_evidences = []
         self.stop_reason = None
 
     def mark_completed(self, reason: str = "Tarea completada exitosamente.") -> None:
@@ -397,6 +399,10 @@ class ChatSession:
         self.confirmador_callback = confirmador_callback
         self.on_tool_call = on_tool_call
         self.runtime_status: Dict[str, bool] = {}
+        self.capabilities_cache: Dict[str, Dict[str, Any]] = {}
+        self.last_installed_pkg_hash: Dict[str, str] = {}
+        self.last_ts_verification_hash: Dict[str, str] = {}
+        self.current_working_directory: str = ""
         self.task_changes = TaskChangeState()
         self.current_task = TaskExecutionState()
         self.technology_decision: Dict[str, Any] = {
@@ -406,6 +412,116 @@ class ChatSession:
             "authorization_for": None,
             "denied_for": None,
         }
+
+    def _get_package_json_hash(self, rel_cwd: str = "") -> Optional[str]:
+        """Calcula el hash MD5 del package.json para la ruta de trabajo actual."""
+        target = Path(rel_cwd) / "package.json" if rel_cwd else Path("package.json")
+        val = herramientas.workspace_manager.validar_ruta(str(target), must_exist=False)
+        if not val["valida"]:
+            return None
+        p = Path(val["ruta_absoluta"])
+        if p.exists() and p.is_file():
+            try:
+                return hashlib.md5(p.read_bytes()).hexdigest()
+            except Exception:
+                return None
+        return None
+
+    def _get_ts_files_hash(self, rel_cwd: str = "") -> Optional[str]:
+        """Calcula un hash colectivo de los archivos .ts y .tsx del proyecto."""
+        target_dir = Path(rel_cwd) if rel_cwd else Path(".")
+        val = herramientas.workspace_manager.validar_ruta(str(target_dir), must_exist=False)
+        if not val["valida"]:
+            return None
+        base_path = Path(val["ruta_absoluta"])
+        if not base_path.exists() or not base_path.is_dir():
+            return None
+
+        hashes = []
+        try:
+            for p in sorted(base_path.rglob("*.ts*")):
+                if "node_modules" in p.parts:
+                    continue
+                if p.is_file():
+                    try:
+                        hashes.append(f"{p.name}:{p.stat().st_mtime}:{p.stat().st_size}")
+                    except Exception:
+                        pass
+        except Exception:
+            return None
+
+        if not hashes:
+            return None
+        return hashlib.md5(";".join(hashes).encode("utf-8")).hexdigest()
+
+    def set_capability(self, name: str, category: str, available: bool) -> None:
+        """Registra el estado real verificado de una capacidad ('runtime', 'dependency', 'tool')."""
+        entry = {
+            "available": available,
+            "category": category,
+            "name": name,
+        }
+        self.capabilities_cache[name] = entry
+        self.capabilities_cache[f"{category}:{name}"] = entry
+
+    def get_capability(self, name: str, category: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Obtiene la capacidad registrada en la sesión actual."""
+        if category:
+            key = f"{category}:{name}"
+            if key in self.capabilities_cache:
+                return self.capabilities_cache[key]
+        return self.capabilities_cache.get(name)
+
+    def discover_project_capabilities(self) -> Dict[str, Any]:
+        """
+        Inspecciona el proyecto guiándose por package.json en el directorio actual (cwd).
+        Detecta dependencias declaradas e instaladas sin ejecutar barridos indiscriminados en el sandbox.
+        """
+        rel_cwd = self.current_working_directory or ""
+        target_json = Path(rel_cwd) / "package.json" if rel_cwd else "package.json"
+        val = herramientas.workspace_manager.validar_ruta(str(target_json), must_exist=False)
+        if not val["valida"]:
+            return {}
+
+        pkg_json_path = Path(val["ruta_absoluta"])
+        if not pkg_json_path.exists() or not pkg_json_path.is_file():
+            return {}
+
+        try:
+            with open(pkg_json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            return {}
+
+        deps = {}
+        if isinstance(data.get("dependencies"), dict):
+            deps.update(data["dependencies"])
+        if isinstance(data.get("devDependencies"), dict):
+            deps.update(data["devDependencies"])
+
+        project_dir = pkg_json_path.parent
+        node_modules_dir = project_dir / "node_modules"
+
+        discovered = {}
+        for pkg_name in deps:
+            if not isinstance(pkg_name, str) or not pkg_name.strip():
+                continue
+            is_installed = (node_modules_dir / pkg_name).exists()
+            discovered[pkg_name] = {
+                "type": "dependency",
+                "installed": is_installed,
+                "version": deps[pkg_name],
+            }
+            cap = self.get_capability(pkg_name, "dependency") or {}
+            cap.update({
+                "type": "dependency",
+                "installed": is_installed,
+                "declared_version": deps[pkg_name],
+            })
+            self.capabilities_cache[pkg_name] = cap
+            self.capabilities_cache[f"dependency:{pkg_name}"] = cap
+
+        return discovered
 
     def _register_human_technology_authorization(self, mensaje_usuario: str) -> None:
         """Registra sólo una autorización humana explícita para el cambio pendiente."""
@@ -425,26 +541,79 @@ class ChatSession:
                 self.technology_decision["denied_for"] = None
                 self.task_changes.record_decision(f"technology_change_authorized:{selected}->{alternative}")
             else:
-                self.technology_decision["authorization_for"] = None
                 self.technology_decision["denied_for"] = decision
+                self.technology_decision["authorization_for"] = None
                 self.task_changes.record_decision(f"technology_change_denied:{selected}->{alternative}")
 
-    def _safe_file_context(self, ruta: Any, is_creation: bool = False) -> Optional[dict[str, Any]]:
-        """Obtiene sólo metadata de una ruta ya validada por WorkspaceManager."""
-        if not isinstance(ruta, str):
+    def _safe_file_context(self, rel_path: str, is_creation: bool = False) -> Optional[Dict[str, Any]]:
+        """Obtiene un snapshot seguro del archivo dentro del workspace."""
+        val = herramientas.workspace_manager.validar_ruta(rel_path, is_creation=is_creation)
+        if not val["valida"]:
             return None
-        validation = herramientas.workspace_manager.validar_ruta(ruta, is_creation=is_creation)
-        if not validation.get("valida"):
-            return None
-        path = Path(validation["ruta_absoluta"])
-        return {"path": validation["ruta_relativa"], "exists": path.exists(), "hash": _file_hash(path)}
+
+        p = Path(val["ruta_absoluta"])
+        exists = p.exists() and p.is_file()
+        file_hash = None
+        if exists:
+            try:
+                file_hash = _file_hash(p)
+            except Exception:
+                file_hash = None
+
+        return {
+            "path": rel_path,
+            "exists": exists,
+            "hash": file_hash,
+        }
+
+    def _track_tool_side_effects(
+        self,
+        nombre: str,
+        args: Dict[str, Any],
+        context: Dict[str, Any],
+        resultado: Dict[str, Any]
+    ) -> None:
+        """Registra los efectos secundarios de herramientas mutantes de archivos."""
+        if resultado.get("error"):
+            return
+
+        kind = None
+        if nombre == "escribir_archivo": kind = "write"
+        elif nombre == "editar_archivo": kind = "write"
+        elif nombre == "ejecutar_comando_bash":
+            cmd = args.get("comando", "")
+            if "rm " in cmd: kind = "rm"
+            elif "mv " in cmd or "cp " in cmd: kind = "move"
+
+        if not kind:
+            return
+
+        if kind == "write":
+            before = context.get("file")
+            path = resultado.get("ruta_relativa")
+            if before and isinstance(path, str):
+                validated = self._safe_file_context(path, is_creation=True)
+                self.task_changes.record_write(path, resultado.get("operacion", "modified"), before["exists"], before["hash"], validated["hash"] if validated else None)
+        elif kind == "rm":
+            for file_context in context.get("files", []):
+                if file_context and file_context["exists"]:
+                    self.task_changes.record_delete(file_context["path"], file_context["hash"])
+        elif kind == "move":
+            source = context.get("source")
+            destination = context.get("destination")
+            if source and source["exists"]:
+                self.task_changes.record_delete(source["path"], source["hash"])
+            if destination:
+                current = self._safe_file_context(destination["path"], is_creation=True)
+                if current and current["exists"]:
+                    self.task_changes.record_write(destination["path"], "creado", destination["exists"], destination["hash"], current["hash"])
 
     def _prepare_change_context(self, nombre: str, args: Dict[str, Any]) -> Optional[dict[str, Any]]:
         """Captura metadata previa sin ejecutar ni alterar ninguna operación."""
         if nombre == "escribir_archivo":
-            return {"kind": "write", "file": self._safe_file_context(args.get("ruta"), is_creation=True)}
+            return {"kind": "write", "file": self._safe_file_context(args.get("ruta", ""), is_creation=True)}
         if nombre == "editar_archivo":
-            return {"kind": "write", "file": self._safe_file_context(args.get("ruta"), is_creation=False)}
+            return {"kind": "write", "file": self._safe_file_context(args.get("ruta", ""), is_creation=False)}
         if nombre != "ejecutar_comando_bash" or not isinstance(args.get("comando"), str):
             return None
         try:
@@ -476,7 +645,7 @@ class ChatSession:
                 validated = self._safe_file_context(path, is_creation=True)
                 self.task_changes.record_write(path, resultado.get("operacion", "modified"), before["exists"], before["hash"], validated["hash"] if validated else None)
         elif kind == "rm":
-            for file_context in context["files"]:
+            for file_context in context.get("files", []):
                 if file_context and file_context["exists"]:
                     self.task_changes.record_delete(file_context["path"], file_context["hash"])
         elif kind in {"mv", "cp"}:
@@ -488,6 +657,25 @@ class ChatSession:
                 current = self._safe_file_context(destination["path"], is_creation=True)
                 if current and current["exists"]:
                     self.task_changes.record_write(destination["path"], "modified" if destination["exists"] else "creado", destination["exists"], destination["hash"], current["hash"])
+
+        if nombre == "ejecutar_comando_bash":
+            cmd = args.get("comando", "")
+            rel_cwd = self.current_working_directory or ""
+            try:
+                tokens = shlex.split(cmd)
+                if tokens:
+                    exec_name = Path(tokens[0]).name.lower()
+                    subcmd = tokens[1].lower() if len(tokens) > 1 else ""
+                    if exec_name == "npm" and subcmd in ("install", "i", "ci") and not resultado.get("error"):
+                        pkg_h = self._get_package_json_hash(rel_cwd)
+                        if pkg_h:
+                            self.last_installed_pkg_hash[rel_cwd] = pkg_h
+                    elif (exec_name == "tsc" or (exec_name == "npx" and len(tokens) >= 2 and tokens[1].lower() == "tsc")) and not resultado.get("error"):
+                        ts_h = self._get_ts_files_hash(rel_cwd)
+                        if ts_h:
+                            self.last_ts_verification_hash[rel_cwd] = ts_h
+            except Exception:
+                pass
 
     def _is_authorized_technology_change(self, selected: str, alternative: str) -> bool:
         """Comprueba que la autorización pertenece exactamente al cambio solicitado."""
@@ -505,9 +693,8 @@ class ChatSession:
 
     def _preflight_error_for_execution(self, nombre: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
-        Inspecciona ejecuciones de comandos en el sandbox (ejecutar_comando_bash).
-        Si el comando intenta invocar un runtime o ejecutable que ya fue comprobado y
-        no está disponible en el entorno Docker, bloquea la ejecución del comando.
+        Inspecciona ejecuciones de comandos en el sandbox. Evita comprobaciones redundantes
+        usando el caché de la sesión y bloquea la ejecución si los runtimes/dependencias requeridos no están disponibles.
         """
         if nombre != "ejecutar_comando_bash":
             return None
@@ -516,8 +703,11 @@ class ChatSession:
         if not isinstance(comando, str) or not comando.strip():
             return None
 
-        # Si es un comando de verificación de versión (ej. node --version), se permite ejecutar
-        if _runtime_for_version_command(comando) is not None:
+        if "cwd" not in args or not args["cwd"]:
+            args["cwd"] = self.current_working_directory
+
+        # Si el comando solicita explícitamente revalidación (--recheck, --force) no se interrumpe
+        if "--recheck" in comando or "--force" in comando:
             return None
 
         try:
@@ -525,21 +715,124 @@ class ChatSession:
         except Exception:
             return None
 
-        # Omitir wrappers como env, time, stdbuf y asignaciones VAR=VAL / flags
-        idx = 0
-        while idx < len(tokens):
-            token_base = os.path.basename(tokens[idx]).lower()
-            if token_base in ("env", "time", "stdbuf"):
-                idx += 1
-                while idx < len(tokens) and ("=" in tokens[idx] or tokens[idx].startswith("-")):
-                    idx += 1
-            else:
-                break
-
-        if idx >= len(tokens):
+        if not tokens:
             return None
 
-        executable = os.path.basename(tokens[idx]).lower()
+        # Interceptación de 'cd' en preflight
+        if tokens[0].lower() == "cd":
+            eval_cd = command_sanitizer.validar_y_clasificar(comando, cwd=self.current_working_directory)
+            if eval_cd.get("is_cd"):
+                if not eval_cd.get("valido"):
+                    return {
+                        "error": True,
+                        "codigo_error": eval_cd.get("codigo_error", "RUTA_INVALIDA"),
+                        "mensaje": eval_cd["mensaje"],
+                    }
+                self.current_working_directory = eval_cd["new_cwd"]
+                return {
+                    "error": False,
+                    "codigo_salida": 0,
+                    "is_cd": True,
+                    "new_cwd": eval_cd["new_cwd"],
+                    "stdout": eval_cd["mensaje"],
+                    "stderr": "",
+                    "mensaje": eval_cd["mensaje"],
+                    "sandbox": False,
+                }
+
+        exec_name = Path(tokens[0]).name.lower()
+
+        # Prohibición explícita de copiar /var/pkg-cache hacia el workspace o /tmp
+        if "/var/pkg-cache" in comando and any(cmd_kw in comando for cmd_kw in ("cp ", "tar ", "rsync ")):
+            return {
+                "error": True,
+                "codigo_error": "OPERACION_PROHIBIDA",
+                "mensaje": "Está estrictamente prohibido copiar o duplicar /var/pkg-cache hacia el workspace o /tmp. El almacén se utiliza directamente desde /var/pkg-cache.",
+            }
+
+        # Interceptación de comandos de red en preflight
+        if command_sanitizer._is_network_command(tokens, exec_name):
+            return {
+                "error": True,
+                "codigo_error": "NETWORK_BLOCKED",
+                "mensaje": f"El comando '{comando}' fue bloqueado porque la red está desactivada en el sandbox Docker (--network none).",
+            }
+
+        rel_cwd = self.current_working_directory or ""
+        subcmd = tokens[1].lower() if len(tokens) > 1 else ""
+
+        # Deduplicar npm install si package.json no ha cambiado y node_modules existe
+        if exec_name == "npm" and subcmd in ("install", "i", "ci"):
+            pkg_hash = self._get_package_json_hash(rel_cwd)
+            if pkg_hash and self.last_installed_pkg_hash.get(rel_cwd) == pkg_hash:
+                target_json = Path(rel_cwd) / "package.json" if rel_cwd else Path("package.json")
+                val = herramientas.workspace_manager.validar_ruta(str(target_json), must_exist=False)
+                if val["valida"] and (Path(val["ruta_absoluta"]).parent / "node_modules").exists():
+                    return {
+                        "error": False,
+                        "mensaje": f"Las dependencias declaradas en package.json ya están instaladas y actualizadas para '{rel_cwd or 'workspace'}'.",
+                        "stdout": "npm install omitido: dependencias ya instaladas para este package.json.",
+                        "cached": True
+                    }
+
+        # Deduplicar tsc --noEmit si los archivos TypeScript no han cambiado
+        if exec_name == "tsc" or (exec_name == "npx" and len(tokens) >= 2 and tokens[1].lower() == "tsc"):
+            ts_hash = self._get_ts_files_hash(rel_cwd)
+            if ts_hash and self.last_ts_verification_hash.get(rel_cwd) == ts_hash:
+                return {
+                    "error": False,
+                    "mensaje": "No se han detectado cambios en archivos TypeScript desde la última verificación con tsc.",
+                    "stdout": "tsc omitido: sin cambios en código fuente TypeScript desde la última ejecución.",
+                    "cached": True
+                }
+
+        # Deduplicar npm cache ls si la dependencia ya está registrada
+        if exec_name == "npm" and subcmd == "cache" and len(tokens) >= 4 and tokens[2].lower() == "ls":
+            pkg = tokens[3].lower()
+            cap = self.get_capability(pkg, category="dependency")
+            if cap is not None:
+                return {
+                    "error": False,
+                    "mensaje": f"Información de la dependencia '{pkg}' ya registrada en la sesión.",
+                    "stdout": f"npm cache ls {pkg}: paquete ya verificado en la sesión.",
+                    "cached": True
+                }
+
+        # Interceptar consultas redundantes de whereis / which si ya están en el caché de la sesión
+        if exec_name in ("whereis", "which") and len(tokens) >= 2:
+            target = tokens[1].lower()
+            cap = self.get_capability(target)
+            if cap is not None:
+                if cap["available"]:
+                    return {
+                        "error": False,
+                        "mensaje": f"La herramienta o capacidad '{target}' ya fue comprobada y está disponible en la sesión.",
+                        "stdout": f"{target}: /usr/local/bin/{target} (caché de sesión)",
+                        "cached": True
+                    }
+                else:
+                    cat = cap.get("category", "dependency")
+                    cod = "DEPENDENCIA_NO_DISPONIBLE_OFFLINE" if cat == "dependency" else "RUNTIME_NO_DISPONIBLE"
+                    msg = f"La dependencia '{target}' no está disponible en el almacén offline." if cat == "dependency" else f"La herramienta '{target}' no está disponible en el entorno."
+                    return {
+                        "error": True,
+                        "codigo_error": cod,
+                        "mensaje": msg,
+                        "cached": True
+                    }
+
+        # Interceptar npm view / info si la dependencia ya fue verificada como NO disponible
+        if exec_name == "npm" and len(tokens) >= 3 and tokens[1].lower() in ("view", "info"):
+            pkg = command_sanitizer._extract_npm_package_name(tokens)
+            if pkg:
+                cap = self.get_capability(pkg, category="dependency")
+                if cap and not cap["available"]:
+                    return {
+                        "error": True,
+                        "codigo_error": "DEPENDENCIA_NO_DISPONIBLE_OFFLINE",
+                        "mensaje": f"La dependencia '{pkg}' no está disponible en el almacén offline.",
+                        "cached": True
+                    }
 
         # Mapeo de ejecutables a nombres de runtime
         executable_runtimes = {
@@ -556,14 +849,44 @@ class ChatSession:
             "cargo": "cargo",
             "rustc": "cargo",
             "dotnet": "dotnet",
+            "tsc": "typescript",
         }
+
+        # Omitir wrappers
+        idx = 0
+        while idx < len(tokens):
+            token_base = os.path.basename(tokens[idx]).lower()
+            if token_base in ("env", "time", "stdbuf"):
+                idx += 1
+                while idx < len(tokens) and ("=" in tokens[idx] or tokens[idx].startswith("-")):
+                    idx += 1
+            else:
+                break
+
+        if idx >= len(tokens):
+            return None
+
+        executable = os.path.basename(tokens[idx]).lower()
+
+        # Si es un comando de versión de runtime y YA fue verificado en la sesión
+        runtime_check = _runtime_for_version_command(comando)
+        if runtime_check:
+            cap = self.get_capability(runtime_check, category="runtime")
+            if cap and cap["available"]:
+                return {
+                    "error": False,
+                    "mensaje": f"El runtime '{runtime_check}' ya fue verificado y está disponible en la sesión.",
+                    "stdout": f"{runtime_check} disponible (caché de sesión)",
+                    "cached": True
+                }
+            return None
 
         required_runtime = executable_runtimes.get(executable)
         if not required_runtime:
             return None
 
         # Si el runtime ya fue comprobado y NO está disponible en el entorno
-        if self.runtime_status.get(required_runtime) is False:
+        if self.runtime_status.get(required_runtime) is False or (self.get_capability(required_runtime) and not self.get_capability(required_runtime)["available"]):
             return {
                 "error": True,
                 "codigo_error": "RUNTIME_NO_DISPONIBLE",
@@ -576,24 +899,85 @@ class ChatSession:
         return None
 
     def _record_runtime_check(self, nombre: str, args: Dict[str, Any], resultado: Dict[str, Any]) -> None:
-        """Conserva el resultado de comprobaciones de versión realizadas en el sandbox."""
+        """Conserva el resultado de comprobaciones de versión y capacidades en la sesión."""
         if nombre != "ejecutar_comando_bash":
             return
         command = args.get("comando", "")
-        runtime = _runtime_for_version_command(command) if isinstance(command, str) else None
+        if not isinstance(command, str) or not command.strip():
+            return
+
+        is_error = bool(resultado.get("error"))
+        cod_err = resultado.get("codigo_error")
+
+        # 1. Comprobación de runtime (--version)
+        runtime = _runtime_for_version_command(command)
         if runtime:
-            self.runtime_status[runtime] = not bool(resultado.get("error"))
-            selected = self.technology_decision["selected"]
-            if RUNTIME_TECHNOLOGIES[runtime] == selected:
+            avail = not is_error
+            self.runtime_status[runtime] = avail
+            self.set_capability(runtime, "runtime", avail)
+
+            selected = self.technology_decision.get("selected")
+            if selected and RUNTIME_TECHNOLOGIES.get(runtime) == selected:
                 required = next(
-                    runtimes
-                    for artifacts, runtimes in ARTIFACT_RUNTIME_REQUIREMENTS.items()
-                    if _technology_for_runtimes(runtimes) == selected
+                    (runtimes for artifacts, runtimes in ARTIFACT_RUNTIME_REQUIREMENTS.items()
+                     if _technology_for_runtimes(runtimes) == selected),
+                    None
                 )
-                statuses = [self.runtime_status.get(required_runtime) for required_runtime in required]
-                self.technology_decision["runtime_available"] = (
-                    False if False in statuses else True if all(status is True for status in statuses) else None
-                )
+                if required:
+                    statuses = [self.runtime_status.get(r) for r in required]
+                    self.technology_decision["runtime_available"] = (
+                        False if False in statuses else True if all(s is True for s in statuses) else None
+                    )
+            return
+
+        # 2. Detección de dependencia no instalada o no disponible offline
+        if cod_err in ("DEPENDENCIA_NO_INSTALADA", "DEPENDENCIA_NO_DISPONIBLE_OFFLINE"):
+            pkg = resultado.get("paquete_faltante")
+            if not pkg:
+                try:
+                    toks = shlex.split(command)
+                    pkg = command_sanitizer._extract_npm_package_name(toks)
+                except Exception:
+                    pkg = None
+            if pkg:
+                if cod_err == "DEPENDENCIA_NO_INSTALADA":
+                    self.set_capability(pkg, "dependency", False)
+                    # Actualizar metadata indicando que existe offline
+                    entry = self.get_capability(pkg) or {}
+                    entry.update({"source": "offline", "tarball": resultado.get("tarball_offline"), "available": True, "installed": False})
+                    self.capabilities_cache[pkg] = entry
+                else:
+                    self.set_capability(pkg, "dependency", False)
+            return
+
+        # 3. Comprobación de instalación exitosa de npm
+        if not is_error and command.startswith("npm "):
+            try:
+                toks = shlex.split(command)
+                if len(toks) >= 2 and toks[1] in ("install", "i", "ci"):
+                    pkg = command_sanitizer._extract_npm_package_name(toks)
+                    if pkg:
+                        self.set_capability(pkg, "dependency", True)
+            except Exception:
+                pass
+
+        # 4. Comprobación de binario/herramienta (whereis, which)
+        try:
+            tokens = shlex.split(command)
+        except Exception:
+            return
+
+        if len(tokens) >= 2:
+            exe = Path(tokens[0]).name.lower()
+            if exe in ("whereis", "which"):
+                target = tokens[1].lower()
+                category = "dependency" if target in ("next", "react", "vue", "express") else "tool"
+                stdout = str(resultado.get("stdout") or "").strip()
+                if exe == "whereis":
+                    avail = not is_error and ":" in stdout and len(stdout.split(":", 1)[1].strip()) > 0
+                else:
+                    avail = not is_error and len(stdout) > 0
+                self.set_capability(target, category, avail)
 
     def _update_task_execution_state(self, nombre: str, args: Dict[str, Any], resultado: Dict[str, Any]) -> None:
         """Actualiza el estado efímero del Agent Loop según el resultado de cada herramienta."""
@@ -610,45 +994,144 @@ class ChatSession:
             else:
                 self.current_task.phase = "IMPLEMENTATION"
 
+        # Manejo de errores internos del agente o herramientas (AGENT_INTERNAL_ERROR)
+        if resultado.get("codigo_error") in ("AGENT_INTERNAL_ERROR", "ERROR_HERRAMIENTA", "ERROR_EJECUTOR"):
+            self.current_task.verification_possible = False
+            self.current_task.verification_status = "AGENT_INTERNAL_ERROR"
+            self.current_task.last_verification_output = str(resultado.get("mensaje") or "Error interno del agente.")
+            return
+
+        # Interceptación de cd como actualización de contexto
+        if resultado.get("is_cd"):
+            if not resultado.get("error") and "new_cwd" in resultado:
+                self.current_working_directory = resultado["new_cwd"]
+            return
+
         # Manejo de denegación por usuario
         if resultado.get("codigo_error") == "PERMISO_DENEGADO_POR_USUARIO":
             self.current_task.mark_cancelled("El usuario denegó la autorización explícita para la operación.")
             return
 
-        # Manejo de runtime no disponible
+        # Manejo de bloqueos de red (NETWORK_BLOCKED)
+        if resultado.get("codigo_error") == "NETWORK_BLOCKED":
+            self.current_task.verification_possible = False
+            self.current_task.verification_status = "NETWORK_BLOCKED"
+            self.current_task.last_verification_output = str(resultado.get("mensaje") or "Operación de red bloqueada por la política de sandbox (--network none).")
+            return
+
+        # Manejo de limitaciones del entorno (ENVIRONMENT_BLOCKED)
+        if resultado.get("codigo_error") in (
+            "STORAGE_LIMIT_EXCEEDED",
+            "INVALID_ENVIRONMENT_QUERY",
+            "DEPENDENCIA_NO_INSTALADA",
+            "DEPENDENCIA_NO_DISPONIBLE_OFFLINE",
+            "SANDBOX_NO_DISPONIBLE",
+            "IMAGEN_SANDBOX_NO_DISPONIBLE",
+        ):
+            self.current_task.verification_possible = False
+            self.current_task.verification_status = "ENVIRONMENT_BLOCKED"
+            self.current_task.last_verification_output = str(resultado.get("mensaje") or "Limitación de entorno/almacenamiento detectada.")
+            return
+
+        # Manejo de runtime no disponible (RUNTIMES_UNAVAILABLE)
         if resultado.get("codigo_error") == "RUNTIME_NO_DISPONIBLE":
             self.current_task.verification_possible = False
             self.current_task.verification_status = "RUNTIMES_UNAVAILABLE"
+            self.current_task.last_verification_output = str(resultado.get("mensaje") or "Runtime no disponible.")
             return
 
-        # Manejo de bloqueos de seguridad o sintaxis de comando (NO son fallos del código del proyecto)
-        if resultado.get("codigo_error") in ("SHELL_INJECTION_RISK", "COMANDO_PROHIBIDO", "TIPO_INVALIDO", "COMANDO_VACIO", "SINTAXIS_INVALIDA"):
+        # Manejo de bloqueos de seguridad (SECURITY_BLOCKED)
+        if resultado.get("codigo_error") in (
+            "SHELL_INJECTION_RISK",
+            "COMANDO_PROHIBIDO",
+            "COMANDO_NO_PERMITIDO",
+            "CONFIRMACION_REQUERIDA",
+            "TIPO_INVALIDO",
+            "COMANDO_VACIO",
+            "SINTAXIS_INVALIDA",
+            "FUERA_DEL_WORKSPACE",
+        ):
+            self.current_task.verification_possible = False
+            self.current_task.verification_status = "SECURITY_BLOCKED"
             self.current_task.last_verification_output = str(resultado.get("mensaje") or "Comando rechazado por la política de seguridad.")
             if nombre in ("ejecutar_comando_bash", "revisar_codigo", "generar_pruebas"):
                 self.current_task.phase = "VERIFICATION"
             return
 
-        # Manejo de herramientas de ejecución / prueba
+        # Manejo de timeouts e interrupciones de infraestructura (VERIFICATION_UNAVAILABLE)
+        if resultado.get("codigo_error") in (
+            "TIMEOUT",
+            "TIMEOUT_ENVIRONMENT_CHECK",
+            "PROCESO_INTERRUMPIDO",
+            "ERROR_SANDBOX",
+            "VERIFICATION_UNAVAILABLE",
+        ):
+            self.current_task.verification_possible = False
+            self.current_task.verification_status = "VERIFICATION_UNAVAILABLE"
+            self.current_task.last_verification_output = str(resultado.get("mensaje") or "Ejecución de verificación interrumpida.")
+            return
+
+        # Manejo de herramientas de ejecución / prueba (Falla real del código del proyecto vs Éxito)
         if nombre in ("ejecutar_comando_bash", "revisar_codigo", "generar_pruebas"):
             self.current_task.phase = "VERIFICATION"
 
             comando = args.get("comando", "") if isinstance(args.get("comando"), str) else ""
             is_version_cmd = _runtime_for_version_command(comando) is not None
 
-            if nombre == "ejecutar_comando_bash" and is_version_cmd:
+            if nombre == "ejecutar_comando_bash" and (is_version_cmd or resultado.get("cached")):
+                return
+
+            # Omitir errores que no sean fallos reales de código del proyecto
+            if resultado.get("codigo_error") in (
+                "STORAGE_LIMIT_EXCEEDED",
+                "INVALID_ENVIRONMENT_QUERY",
+                "AGENT_INTERNAL_ERROR",
+                "SECURITY_BLOCKED",
+                "ENVIRONMENT_BLOCKED",
+                "RUNTIMES_UNAVAILABLE",
+                "NETWORK_BLOCKED",
+                "VERIFICATION_UNAVAILABLE",
+                "CONFIRMACION_REQUERIDA",
+                "PERMISO_DENEGADO_POR_USUARIO",
+                "SANDBOX_NO_DISPONIBLE",
+                "IMAGEN_SANDBOX_NO_DISPONIBLE",
+                "DEPENDENCIA_NO_INSTALADA",
+                "DEPENDENCIA_NO_DISPONIBLE_OFFLINE",
+                "RUNTIME_NO_DISPONIBLE",
+                "TIMEOUT",
+                "TIMEOUT_ENVIRONMENT_CHECK",
+                "SHELL_INJECTION_RISK",
+                "COMANDO_PROHIBIDO",
+                "COMANDO_NO_PERMITIDO",
+                "FUERA_DEL_WORKSPACE",
+            ):
                 return
 
             is_error = bool(resultado.get("error"))
             if is_error:
+                diagnostic = str(resultado.get("stderr") or resultado.get("stdout") or resultado.get("mensaje") or "").strip()
+
+                if not diagnostic:
+                    self.current_task.verification_possible = False
+                    self.current_task.verification_status = "VERIFICATION_UNAVAILABLE"
+                    self.current_task.last_verification_output = "No se obtuvo salida de diagnóstico útil."
+                    return
+
                 self.current_task.verification_completed = True
                 self.current_task.verification_status = "FAILED"
+                self.current_task.last_verification_output = diagnostic
+                self.current_task.failure_evidences.append(diagnostic)
                 self.current_task.repair_attempts += 1
-                self.current_task.last_verification_output = str(resultado.get("mensaje") or resultado.get("stderr") or "")
 
                 if self.current_task.repair_attempts >= MAX_REPAIR_ATTEMPTS:
-                    self.current_task.mark_failed(
-                        f"Se alcanzó el límite máximo de {MAX_REPAIR_ATTEMPTS} intentos de reparación tras fallos de prueba."
-                    )
+                    if len(self.current_task.failure_evidences) >= MAX_REPAIR_ATTEMPTS:
+                        self.current_task.mark_failed(
+                            f"Se alcanzó el límite máximo de {MAX_REPAIR_ATTEMPTS} intentos de reparación tras fallos de prueba."
+                        )
+                    else:
+                        self.current_task.mark_failed(
+                            "Verificación interrumpida: no se obtuvo una salida de verificación suficiente para determinar un fallo del proyecto."
+                        )
                 else:
                     self.current_task.phase = "REPAIR"
             else:
@@ -672,6 +1155,7 @@ class ChatSession:
             "verifica", "verificar", "prueba", "pruebas", "test", "comprueba", "funcionando"
         )
         requires_verification = any(kw in msg_lower for kw in keywords_verification)
+
 
         keywords_new_task = (
             "construye", "crea un ", "crea una ", "implementa", "desarrolla",
@@ -856,36 +1340,60 @@ class ChatSession:
                             if (
                                 isinstance(resultado, dict)
                                 and resultado.get("codigo_error") == "CONFIRMACION_REQUERIDA"
-                                and self.confirmador_callback is not None
                             ):
                                 cmd_target = resultado.get("comando") or args_parsed.get("comando", nombre)
                                 msg_req = resultado.get("mensaje", "Operación requiere autorización.")
+                                confirmador = getattr(self, "confirmador_callback", None)
 
-                                aprobado = self.confirmador_callback(cmd_target, msg_req)
-                                if aprobado:
-                                    if nombre == "ejecutar_comando_bash":
-                                        resultado = herramientas.command_sanitizer.ejecutar_comando(
-                                            raw_command=args_parsed.get("comando", ""),
-                                            timeout_sec=args_parsed.get("timeout_sec", 15),
-                                            aprobar_confirmacion=True
-                                        )
+                                if confirmador is not None:
+                                    try:
+                                        aprobado = confirmador(cmd_target, msg_req)
+                                    except Exception as cb_err:
+                                        aprobado = False
+                                        resultado = {
+                                            "error": True,
+                                            "codigo_error": "AGENT_INTERNAL_ERROR",
+                                            "mensaje": f"Excepción en callback de confirmación: {str(cb_err)}"
+                                        }
+
+                                    if resultado.get("codigo_error") != "AGENT_INTERNAL_ERROR":
+                                        if aprobado:
+                                            if nombre == "ejecutar_comando_bash":
+                                                resultado = herramientas.command_sanitizer.ejecutar_comando(
+                                                    raw_command=args_parsed.get("comando", ""),
+                                                    timeout_sec=args_parsed.get("timeout_sec", 15),
+                                                    aprobar_confirmacion=True,
+                                                    cwd=args_parsed.get("cwd", self.current_working_directory),
+                                                )
+                                        else:
+                                            resultado = {
+                                                "error": True,
+                                                "codigo_error": "PERMISO_DENEGADO_POR_USUARIO",
+                                                "mensaje": f"El usuario denegó explícitamente la ejecución de '{cmd_target}'."
+                                            }
                                 else:
                                     resultado = {
                                         "error": True,
-                                        "codigo_error": "PERMISO_DENEGADO_POR_USUARIO",
-                                        "mensaje": f"El usuario denegó explícitamente la ejecución de '{cmd_target}'."
+                                        "codigo_error": "CONFIRMACION_REQUERIDA",
+                                        "mensaje": f"El comando '{cmd_target}' requiere autorización pero no hay un callback de confirmación configurado en la sesión."
                                     }
 
                         except TypeError as type_err:
                             resultado = {
                                 "error": True,
+                                "codigo_error": "AGENT_INTERNAL_ERROR",
                                 "mensaje": f"Argumentos incompatibles para '{nombre}': {str(type_err)}"
                             }
                         except Exception as e:
-                            resultado = {"error": True, "mensaje": f"Excepción durante la ejecución de '{nombre}': {str(e)}"}
+                            resultado = {
+                                "error": True,
+                                "codigo_error": "AGENT_INTERNAL_ERROR",
+                                "mensaje": f"Excepción durante la ejecución de '{nombre}': {str(e)}"
+                            }
                     else:
                         resultado = {
                             "error": True,
+                            "codigo_error": "AGENT_INTERNAL_ERROR",
                             "mensaje": f"Función '{nombre}' no registrada en funciones_disponibles."
                         }
 
