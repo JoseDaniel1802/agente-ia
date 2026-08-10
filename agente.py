@@ -130,8 +130,11 @@ MAX_REPAIR_ATTEMPTS = 3
 class TaskExecutionState:
     """Estado efímero del ciclo de vida y verificación de la tarea activa."""
     goal: str = ""
-    status: str = "IDLE"  # IDLE, ACTIVE, COMPLETED, FAILED, CANCELLED
-    phase: str = "INSPECTION"  # INSPECTION, IMPLEMENTATION, VERIFICATION, REPAIR, COMPLETION
+    status: str = "IDLE"  # IDLE, ACTIVE, COMPLETED, FAILED, CANCELLED, BLOCKED
+    phase: str = "PLANNING"  # PLANNING, INSPECTION, IMPLEMENTATION, DEPENDENCIES, VERIFICATION, MANUAL_ACTION_REQUIRED, RUNNING, COMPLETED, BLOCKED
+    completed_phases: List[str] = field(default_factory=list)
+    pending_manual_action: Optional[Dict[str, Any]] = None
+    manual_actions_history: List[Dict[str, Any]] = field(default_factory=list)
     repair_attempts: int = 0
     verification_required: bool = False
     verification_possible: bool = True
@@ -144,7 +147,10 @@ class TaskExecutionState:
     def start_task(self, goal: str, requires_verification: bool = False) -> None:
         self.goal = goal
         self.status = "ACTIVE"
-        self.phase = "INSPECTION"
+        self.phase = "PLANNING"
+        self.completed_phases = []
+        self.pending_manual_action = None
+        self.manual_actions_history = []
         self.repair_attempts = 0
         self.verification_required = requires_verification
         self.verification_possible = True
@@ -154,19 +160,60 @@ class TaskExecutionState:
         self.failure_evidences = []
         self.stop_reason = None
 
+    def set_phase(self, new_phase: str) -> None:
+        if self.phase and self.phase != new_phase and self.phase not in self.completed_phases:
+            self.completed_phases.append(self.phase)
+        self.phase = new_phase
+
+    def request_manual_action(
+        self,
+        action_type: str,
+        cwd: str,
+        command: str,
+        expected: str,
+        target_env: str = "HOST",
+        instruction: str = ""
+    ) -> Dict[str, Any]:
+        self.set_phase("MANUAL_ACTION_REQUIRED")
+        self.status = "ACTIVE"
+        action = {
+            "type": action_type,
+            "target_env": target_env,  # HOST o SANDBOX
+            "cwd": cwd,
+            "command": command,
+            "expected": expected,
+            "instruction": instruction,
+            "timestamp": time.time(),
+            "status": "PENDING"
+        }
+        self.pending_manual_action = action
+        return action
+
+    def complete_manual_action(self, next_phase: str = "VERIFICATION") -> Optional[Dict[str, Any]]:
+        if self.pending_manual_action:
+            action = self.pending_manual_action
+            action["status"] = "COMPLETED"
+            self.manual_actions_history.append(action)
+            self.pending_manual_action = None
+            if "MANUAL_ACTION_REQUIRED" not in self.completed_phases:
+                self.completed_phases.append("MANUAL_ACTION_REQUIRED")
+            self.set_phase(next_phase)
+            return action
+        return None
+
     def mark_completed(self, reason: str = "Tarea completada exitosamente.") -> None:
         self.status = "COMPLETED"
-        self.phase = "COMPLETION"
+        self.set_phase("COMPLETED")
         self.stop_reason = reason
 
     def mark_failed(self, reason: str) -> None:
         self.status = "FAILED"
-        self.phase = "COMPLETION"
+        self.set_phase("BLOCKED")
         self.stop_reason = reason
 
     def mark_cancelled(self, reason: str) -> None:
         self.status = "CANCELLED"
-        self.phase = "COMPLETION"
+        self.set_phase("BLOCKED")
         self.stop_reason = reason
 
 
@@ -658,25 +705,6 @@ class ChatSession:
                 if current and current["exists"]:
                     self.task_changes.record_write(destination["path"], "modified" if destination["exists"] else "creado", destination["exists"], destination["hash"], current["hash"])
 
-        if nombre == "ejecutar_comando_bash":
-            cmd = args.get("comando", "")
-            rel_cwd = self.current_working_directory or ""
-            try:
-                tokens = shlex.split(cmd)
-                if tokens:
-                    exec_name = Path(tokens[0]).name.lower()
-                    subcmd = tokens[1].lower() if len(tokens) > 1 else ""
-                    if exec_name == "npm" and subcmd in ("install", "i", "ci") and not resultado.get("error"):
-                        pkg_h = self._get_package_json_hash(rel_cwd)
-                        if pkg_h:
-                            self.last_installed_pkg_hash[rel_cwd] = pkg_h
-                    elif (exec_name == "tsc" or (exec_name == "npx" and len(tokens) >= 2 and tokens[1].lower() == "tsc")) and not resultado.get("error"):
-                        ts_h = self._get_ts_files_hash(rel_cwd)
-                        if ts_h:
-                            self.last_ts_verification_hash[rel_cwd] = ts_h
-            except Exception:
-                pass
-
     def _is_authorized_technology_change(self, selected: str, alternative: str) -> bool:
         """Comprueba que la autorización pertenece exactamente al cambio solicitado."""
         return self.technology_decision["authorization_for"] == {
@@ -994,6 +1022,26 @@ class ChatSession:
             else:
                 self.current_task.phase = "IMPLEMENTATION"
 
+        # Actualización de tracking de hashes para npm install y tsc --noEmit
+        if nombre == "ejecutar_comando_bash":
+            cmd = args.get("comando", "")
+            rel_cwd = self.current_working_directory or ""
+            try:
+                tokens = shlex.split(cmd)
+                if tokens:
+                    exec_name = Path(tokens[0]).name.lower()
+                    subcmd = tokens[1].lower() if len(tokens) > 1 else ""
+                    if exec_name == "npm" and subcmd in ("install", "i", "ci") and not resultado.get("error"):
+                        pkg_h = self._get_package_json_hash(rel_cwd)
+                        if pkg_h:
+                            self.last_installed_pkg_hash[rel_cwd] = pkg_h
+                    elif (exec_name == "tsc" or (exec_name == "npx" and len(tokens) >= 2 and tokens[1].lower() == "tsc")) and not resultado.get("error"):
+                        ts_h = self._get_ts_files_hash(rel_cwd)
+                        if ts_h:
+                            self.last_ts_verification_hash[rel_cwd] = ts_h
+            except Exception:
+                pass
+
         # Manejo de errores internos del agente o herramientas (AGENT_INTERNAL_ERROR)
         if resultado.get("codigo_error") in ("AGENT_INTERNAL_ERROR", "ERROR_HERRAMIENTA", "ERROR_EJECUTOR"):
             self.current_task.verification_possible = False
@@ -1150,12 +1198,29 @@ class ChatSession:
         msg_trimmed = mensaje_usuario.strip()
         msg_lower = msg_trimmed.lower()
 
+        # Detección de respuesta del usuario a una ACCIÓN MANUAL REQUERIDA
+        confirmation_keywords = {
+            "listo", "sí", "si", "ya está", "ya esta", "ejecutándose", "ejecutando", "hecho",
+            "ok", "continúa", "continua", "listos", "frontend listo", "backend listo",
+            "dependencias listas", "lo hice", "servidor listo"
+        }
+        if self.current_task.pending_manual_action and any(kw in msg_lower for kw in confirmation_keywords):
+            action_completed = self.current_task.complete_manual_action(next_phase="VERIFICATION")
+            if action_completed:
+                system_note = (
+                    f"\n\n[SISTEMA - ACCIÓN MANUAL CONFIRMADA]\n"
+                    f"El usuario ha confirmado la realización de la ACCIÓN MANUAL ({action_completed['command']}).\n"
+                    f"La fase MANUAL_ACTION_REQUIRED ha finalizado exitosamente.\n"
+                    f"Fase actual: {self.current_task.phase}. Continúa desde el paso siguiente.\n"
+                    f"NO reinicies la tarea. NO repitas npm install ni tsc si los archivos no cambiaron."
+                )
+                self.messages.append({"role": "system", "content": system_note})
+
         keywords_verification = (
             "asegúrate de que funcione", "asegurate que funcione", "asegurate de que funcione",
             "verifica", "verificar", "prueba", "pruebas", "test", "comprueba", "funcionando"
         )
         requires_verification = any(kw in msg_lower for kw in keywords_verification)
-
 
         keywords_new_task = (
             "construye", "crea un ", "crea una ", "implementa", "desarrolla",
@@ -1303,10 +1368,12 @@ class ChatSession:
                 )
 
             for tool_call in assistant_message.tool_calls:
-                nombre = tool_call.function.name
-                raw_args = tool_call.function.arguments
+                nombre = tool_call.function.name if (tool_call and tool_call.function and tool_call.function.name) else "desconocida"
+                raw_args = tool_call.function.arguments if (tool_call and tool_call.function and tool_call.function.arguments) else "{}"
                 herramientas_usadas.append(nombre)
                 change_context = None
+                args_parsed: Dict[str, Any] = {}
+                resultado: Dict[str, Any] = {}
 
                 try:
                     args = json.loads(raw_args) if raw_args else {}
@@ -1326,6 +1393,7 @@ class ChatSession:
                 except Exception as json_err:
                     resultado = {
                         "error": True,
+                        "codigo_error": "AGENT_INTERNAL_ERROR",
                         "mensaje": f"Error de sintaxis JSON en argumentos de '{nombre}': {str(json_err)}"
                     }
                 else:
@@ -1388,7 +1456,8 @@ class ChatSession:
                             resultado = {
                                 "error": True,
                                 "codigo_error": "AGENT_INTERNAL_ERROR",
-                                "mensaje": f"Excepción durante la ejecución de '{nombre}': {str(e)}"
+                                "mensaje": f"Excepción interna durante la ejecución de '{nombre}' ({type(e).__name__}): {str(e)}",
+                                "traceback": traceback.format_exc()
                             }
                     else:
                         resultado = {

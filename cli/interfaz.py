@@ -91,7 +91,7 @@ def run_cli() -> None:
         except Exception as e:
             detener_spinner_agente()
             mostrar_error(
-                titulo="No fue posible completar la comunicación con el agente.",
-                detalle=str(e),
+                titulo="Ocurrió una excepción no controlada en Muss_Code.",
+                detalle=f"Excepción ({type(e).__name__}): {str(e)}",
                 codigo_error="ERROR_INTERNO_AGENTE",
             )
