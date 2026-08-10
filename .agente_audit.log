@@ -1,0 +1,321 @@
+[2026-08-09T04:36:55.796823+00:00] [CommandSanitizer] [EJECUCION] [EXITO] CMD='pwd' exit_code=0 time=0.0s
+[2026-08-09T04:36:55.799934+00:00] [CommandSanitizer] [EJECUCION] [EXITO] CMD='ls' exit_code=0 time=0.0s
+[2026-08-09T04:36:55.808640+00:00] [CommandSanitizer] [EJECUCION] [EXITO] CMD='git status' exit_code=0 time=0.01s
+[2026-08-09T04:36:55.816432+00:00] [CommandSanitizer] [EJECUCION] [EXITO] CMD='git diff' exit_code=0 time=0.01s
+[2026-08-09T04:36:55.819024+00:00] [CommandSanitizer] [ERROR_EXEC] [ERROR] CMD='pytest' [Errno 2] No such file or directory: 'pytest'
+[2026-08-09T04:36:55.819144+00:00] [CommandSanitizer] [CONFIRMACION] [REQUIERE_AUTORIZACION] CMD='python3 -m unittest' 
+[2026-08-09T04:37:09.317976+00:00] [CommandSanitizer] [EJECUCION] [EXITO] CMD='pwd' exit_code=0 time=0.0s
+[2026-08-09T04:37:09.320401+00:00] [CommandSanitizer] [EJECUCION] [EXITO] CMD='ls' exit_code=0 time=0.0s
+[2026-08-09T04:37:09.328784+00:00] [CommandSanitizer] [EJECUCION] [EXITO] CMD='git status' exit_code=0 time=0.01s
+[2026-08-09T04:37:09.336977+00:00] [CommandSanitizer] [EJECUCION] [EXITO] CMD='git diff' exit_code=0 time=0.01s
+[2026-08-09T04:37:09.338643+00:00] [CommandSanitizer] [ERROR_EXEC] [ERROR] CMD='pytest' [Errno 2] No such file or directory: 'pytest'
+[2026-08-09T04:37:09.370640+00:00] [CommandSanitizer] [EJECUCION] [PROCESO_FALLIDO] CMD='python3 -m unittest' exit_code=5 time=0.03s
+[2026-08-09T04:37:09.375120+00:00] [CommandSanitizer] [EJECUCION] [EXITO] CMD='grep "def" herramientas.py' exit_code=0 time=0.0s
+[2026-08-09T04:37:09.452992+00:00] [CommandSanitizer] [EJECUCION] [EXITO] CMD='find . -name "*.py"' exit_code=0 time=0.08s
+[2026-08-09T04:37:09.457399+00:00] [CommandSanitizer] [EJECUCION] [EXITO] CMD='wc -l main.py' exit_code=0 time=0.0s
+[2026-08-09T04:37:09.460129+00:00] [CommandSanitizer] [EJECUCION] [EXITO] CMD='head -n 5 main.py' exit_code=0 time=0.0s
+[2026-08-09T04:37:09.462779+00:00] [CommandSanitizer] [EJECUCION] [EXITO] CMD='cat main.py' exit_code=0 time=0.0s
+[2026-08-09T04:37:09.462914+00:00] [CommandSanitizer] [CONFIRMACION] [REQUIERE_AUTORIZACION] CMD='git commit -m "test"' 
+[2026-08-09T04:37:09.462960+00:00] [CommandSanitizer] [CONFIRMACION] [REQUIERE_AUTORIZACION] CMD='git checkout main' 
+[2026-08-09T04:37:09.462993+00:00] [CommandSanitizer] [CONFIRMACION] [REQUIERE_AUTORIZACION] CMD='pip install pytest' 
+[2026-08-09T04:37:09.463200+00:00] [CommandSanitizer] [CONFIRMACION] [REQUIERE_AUTORIZACION] CMD='rm test_file.txt' 
+[2026-08-09T04:37:09.463435+00:00] [CommandSanitizer] [CONFIRMACION] [REQUIERE_AUTORIZACION] CMD='mv main.py main_backup.py' 
+[2026-08-09T04:37:09.463661+00:00] [CommandSanitizer] [CONFIRMACION] [REQUIERE_AUTORIZACION] CMD='cp main.py main_copy.py' 
+[2026-08-09T04:37:09.471954+00:00] [CommandSanitizer] [EJECUCION] [EXITO] CMD='git status' exit_code=0 time=0.01s
+[2026-08-09T04:37:09.472116+00:00] [CommandSanitizer] [PROHIBIDO] [BLOQUEADO] CMD='sudo ls' Binario sudo prohibido
+[2026-08-09T04:37:09.472161+00:00] [CommandSanitizer] [PROHIBIDO] [BLOQUEADO] CMD='su root' Binario su prohibido
+[2026-08-09T04:37:09.472196+00:00] [CommandSanitizer] [PROHIBIDO] [BLOQUEADO] CMD='chmod 777 main.py' Binario chmod prohibido
+[2026-08-09T04:37:09.472226+00:00] [CommandSanitizer] [PROHIBIDO] [BLOQUEADO] CMD='chown root main.py' Binario chown prohibido
+[2026-08-09T04:37:09.472253+00:00] [CommandSanitizer] [PROHIBIDO] [BLOQUEADO] CMD='dd if=/dev/zero' Binario dd prohibido
+[2026-08-09T04:37:09.472280+00:00] [CommandSanitizer] [PROHIBIDO] [BLOQUEADO] CMD='mkfs /dev/sda' Binario mkfs prohibido
+[2026-08-09T04:37:09.472305+00:00] [CommandSanitizer] [PROHIBIDO] [BLOQUEADO] CMD='shutdown' Binario shutdown prohibido
+[2026-08-09T04:37:09.472330+00:00] [CommandSanitizer] [PROHIBIDO] [BLOQUEADO] CMD='reboot' Binario reboot prohibido
+[2026-08-09T04:37:09.472357+00:00] [CommandSanitizer] [PROHIBIDO] [BLOQUEADO] CMD='nc -z localhost 80' Binario nc prohibido
+[2026-08-09T04:37:09.472383+00:00] [CommandSanitizer] [PROHIBIDO] [BLOQUEADO] CMD='nmap localhost' Binario nmap prohibido
+[2026-08-09T04:37:09.472410+00:00] [CommandSanitizer] [PROHIBIDO] [BLOQUEADO] CMD='curl http://example.com' Binario curl prohibido
+[2026-08-09T04:37:09.472463+00:00] [CommandSanitizer] [PROHIBIDO] [BLOQUEADO] CMD='wget http://example.com' Binario wget prohibido
+[2026-08-09T04:37:09.472485+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='python -c "import os; os.system('ls')"' Sintaxis de shell no permitida
+[2026-08-09T04:37:15.870668+00:00] [CommandSanitizer] [EJECUCION] [EXITO] CMD='pwd' exit_code=0 time=0.0s
+[2026-08-09T04:37:15.872997+00:00] [CommandSanitizer] [EJECUCION] [EXITO] CMD='ls' exit_code=0 time=0.0s
+[2026-08-09T04:37:15.881215+00:00] [CommandSanitizer] [EJECUCION] [EXITO] CMD='git status' exit_code=0 time=0.01s
+[2026-08-09T04:37:15.888742+00:00] [CommandSanitizer] [EJECUCION] [EXITO] CMD='git diff' exit_code=0 time=0.01s
+[2026-08-09T04:37:15.890055+00:00] [CommandSanitizer] [ERROR_EXEC] [ERROR] CMD='pytest' [Errno 2] No such file or directory: 'pytest'
+[2026-08-09T04:37:15.917942+00:00] [CommandSanitizer] [EJECUCION] [PROCESO_FALLIDO] CMD='python3 -m unittest' exit_code=5 time=0.03s
+[2026-08-09T04:37:15.921145+00:00] [CommandSanitizer] [EJECUCION] [EXITO] CMD='grep "def" herramientas.py' exit_code=0 time=0.0s
+[2026-08-09T04:37:15.953900+00:00] [CommandSanitizer] [EJECUCION] [EXITO] CMD='find . -name "*.py"' exit_code=0 time=0.03s
+[2026-08-09T04:37:15.956600+00:00] [CommandSanitizer] [EJECUCION] [EXITO] CMD='wc -l main.py' exit_code=0 time=0.0s
+[2026-08-09T04:37:15.958796+00:00] [CommandSanitizer] [EJECUCION] [EXITO] CMD='head -n 5 main.py' exit_code=0 time=0.0s
+[2026-08-09T04:37:15.960867+00:00] [CommandSanitizer] [EJECUCION] [EXITO] CMD='cat main.py' exit_code=0 time=0.0s
+[2026-08-09T04:37:15.960973+00:00] [CommandSanitizer] [CONFIRMACION] [REQUIERE_AUTORIZACION] CMD='git commit -m "test"' 
+[2026-08-09T04:37:15.961017+00:00] [CommandSanitizer] [CONFIRMACION] [REQUIERE_AUTORIZACION] CMD='git checkout main' 
+[2026-08-09T04:37:15.961051+00:00] [CommandSanitizer] [CONFIRMACION] [REQUIERE_AUTORIZACION] CMD='pip install pytest' 
+[2026-08-09T04:37:15.961248+00:00] [CommandSanitizer] [CONFIRMACION] [REQUIERE_AUTORIZACION] CMD='rm test_file.txt' 
+[2026-08-09T04:37:15.961489+00:00] [CommandSanitizer] [CONFIRMACION] [REQUIERE_AUTORIZACION] CMD='mv main.py main_backup.py' 
+[2026-08-09T04:37:15.961716+00:00] [CommandSanitizer] [CONFIRMACION] [REQUIERE_AUTORIZACION] CMD='cp main.py main_copy.py' 
+[2026-08-09T04:37:15.970006+00:00] [CommandSanitizer] [EJECUCION] [EXITO] CMD='git status' exit_code=0 time=0.01s
+[2026-08-09T04:37:15.970174+00:00] [CommandSanitizer] [PROHIBIDO] [BLOQUEADO] CMD='sudo ls' Binario sudo prohibido
+[2026-08-09T04:37:15.970213+00:00] [CommandSanitizer] [PROHIBIDO] [BLOQUEADO] CMD='su root' Binario su prohibido
+[2026-08-09T04:37:15.970247+00:00] [CommandSanitizer] [PROHIBIDO] [BLOQUEADO] CMD='chmod 777 main.py' Binario chmod prohibido
+[2026-08-09T04:37:15.970276+00:00] [CommandSanitizer] [PROHIBIDO] [BLOQUEADO] CMD='chown root main.py' Binario chown prohibido
+[2026-08-09T04:37:15.970306+00:00] [CommandSanitizer] [PROHIBIDO] [BLOQUEADO] CMD='dd if=/dev/zero' Binario dd prohibido
+[2026-08-09T04:37:15.970335+00:00] [CommandSanitizer] [PROHIBIDO] [BLOQUEADO] CMD='mkfs /dev/sda' Binario mkfs prohibido
+[2026-08-09T04:37:15.970362+00:00] [CommandSanitizer] [PROHIBIDO] [BLOQUEADO] CMD='shutdown' Binario shutdown prohibido
+[2026-08-09T04:37:15.970389+00:00] [CommandSanitizer] [PROHIBIDO] [BLOQUEADO] CMD='reboot' Binario reboot prohibido
+[2026-08-09T04:37:15.970417+00:00] [CommandSanitizer] [PROHIBIDO] [BLOQUEADO] CMD='nc -z localhost 80' Binario nc prohibido
+[2026-08-09T04:37:15.970443+00:00] [CommandSanitizer] [PROHIBIDO] [BLOQUEADO] CMD='nmap localhost' Binario nmap prohibido
+[2026-08-09T04:37:15.970472+00:00] [CommandSanitizer] [PROHIBIDO] [BLOQUEADO] CMD='curl http://example.com' Binario curl prohibido
+[2026-08-09T04:37:15.970500+00:00] [CommandSanitizer] [PROHIBIDO] [BLOQUEADO] CMD='wget http://example.com' Binario wget prohibido
+[2026-08-09T04:37:15.970534+00:00] [CommandSanitizer] [PROHIBIDO] [BLOQUEADO] CMD='python3 -c 'print(1)'' python -c prohibido
+[2026-08-09T04:37:15.970587+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='python -c "import os; os.system('ls')"' Sintaxis de shell no permitida
+[2026-08-09T04:37:15.970617+00:00] [CommandSanitizer] [PROHIBIDO] [BLOQUEADO] CMD='vim main.py' Binario vim prohibido
+[2026-08-09T04:37:15.970644+00:00] [CommandSanitizer] [PROHIBIDO] [BLOQUEADO] CMD='nano main.py' Binario nano prohibido
+[2026-08-09T04:37:15.970671+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='pytest; rm -rf /' Sintaxis de shell no permitida
+[2026-08-09T04:37:15.970695+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='pytest && sudo ls' Sintaxis de shell no permitida
+[2026-08-09T04:37:15.970717+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls | sudo ls' Sintaxis de shell no permitida
+[2026-08-09T04:37:15.970739+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo $(sudo ls)' Sintaxis de shell no permitida
+[2026-08-09T04:37:15.970761+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo `sudo ls`' Sintaxis de shell no permitida
+[2026-08-09T04:37:15.970783+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='pytest > /etc/test' Sintaxis de shell no permitida
+[2026-08-09T04:37:15.970925+00:00] [CommandSanitizer] [ARG_OUT_OF_BOUNDS] [BLOQUEADO] CMD='cat /etc/passwd' Acceso denegado: La ruta '/etc/passwd' se resuelve fuera del workspace autorizado.
+[2026-08-09T04:37:15.971031+00:00] [CommandSanitizer] [ARG_OUT_OF_BOUNDS] [BLOQUEADO] CMD='ls ../../' Acceso denegado: La ruta '../../' se resuelve fuera del workspace autorizado.
+[2026-08-09T04:37:15.971144+00:00] [CommandSanitizer] [ARG_OUT_OF_BOUNDS] [BLOQUEADO] CMD='cat ../../archivo' Acceso denegado: El directorio padre de '../../archivo' se resuelve fuera del workspace autorizado.
+[2026-08-09T04:37:15.971337+00:00] [CommandSanitizer] [ARG_OUT_OF_BOUNDS] [BLOQUEADO] CMD='cp main.py /tmp/main.py' Acceso denegado: El directorio padre de '/tmp/main.py' se resuelve fuera del workspace autorizado.
+[2026-08-09T04:37:15.971388+00:00] [CommandSanitizer] [ARG_OUT_OF_BOUNDS] [BLOQUEADO] CMD='cat .env' Acceso denegado: La ruta '.env' coincide con un archivo o directorio sensible protegido por la política de seguridad.
+[2026-08-09T04:37:17.976854+00:00] [CommandSanitizer] [TIMEOUT] [BLOQUEADO] CMD='python3 test_script_sleep.py' Excedió 2s
+[2026-08-09T04:37:18.014168+00:00] [CommandSanitizer] [EJECUCION] [EXITO] CMD='python3 test_script_huge.py' exit_code=0 time=0.03s
+[2026-08-09T04:38:39.494556+00:00] [CommandSanitizer] [EJECUCION] [EXITO] CMD='python3 test_audit_env.py' exit_code=0 time=0.02s
+[2026-08-09T04:38:39.496288+00:00] [CommandSanitizer] [ERROR_EXEC] [ERROR] CMD='pytest' [Errno 2] No such file or directory: 'pytest'
+[2026-08-09T04:38:50.149226+00:00] [CommandSanitizer] [EJECUCION] [EXITO] CMD='python3 test_audit_env.py' exit_code=0 time=0.02s
+[2026-08-09T04:38:50.149679+00:00] [CommandSanitizer] [PATH_HIJACKING] [BLOQUEADO] CMD='pytest' Binario local sospechoso /Users/danielcifuentes/Desktop/Sexto Semestre/Programacion Web/Agente/pytest
+[2026-08-09T04:38:50.149756+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='find . -exec rm -rf / \;' Sintaxis de shell no permitida
+[2026-08-09T04:38:50.149819+00:00] [CommandSanitizer] [FLAG_PROHIBIDO] [BLOQUEADO] CMD='git -c core.pager=upload-pack status' Flag git '-c' prohibido
+[2026-08-09T04:38:50.149868+00:00] [CommandSanitizer] [CONFIRMACION] [REQUIERE_AUTORIZACION] CMD='pip install requests' 
+[2026-08-09T04:38:50.150358+00:00] [CommandSanitizer] [CONFIRMACION] [REQUIERE_AUTORIZACION] CMD='python3 test_script_dummy.py' 
+[2026-08-09T04:38:50.152567+00:00] [CommandSanitizer] [EJECUCION] [PROCESO_FALLIDO] CMD='pwd  [2026-01-01] [HACK] [SUCCESS] FAKE ENTRY' exit_code=1 time=0.0s
+[2026-08-09T04:48:48.799729+00:00] [CommandSanitizer] [CONFIRMACION] [REQUIERE_AUTORIZACION] CMD='mkdir -p tests' 
+[2026-08-09T05:10:53.876280+00:00] [CommandSanitizer] [ERROR_EXEC] [ERROR] CMD='pytest test_calculadora.py' [Errno 2] No such file or directory: 'pytest'
+[2026-08-09T17:58:56.015139+00:00] [CommandSanitizer] [SIN_SANDBOX] [BLOQUEADO] CMD='ls' Sandbox Docker no disponible. Comando NO ejecutado en el host.
+[2026-08-09T17:58:56.017924+00:00] [CommandSanitizer] [SIN_SANDBOX] [BLOQUEADO] CMD='pytest' Sandbox Docker no disponible. Comando NO ejecutado en el host.
+[2026-08-09T17:58:56.018047+00:00] [CommandSanitizer] [SIN_SANDBOX] [BLOQUEADO] CMD='git status' Sandbox Docker no disponible. Comando NO ejecutado en el host.
+[2026-08-09T18:01:14.637233+00:00] [CommandSanitizer] [SIN_SANDBOX] [BLOQUEADO] CMD='ls' Sandbox Docker no disponible. Comando NO ejecutado en el host.
+[2026-08-09T18:01:14.639896+00:00] [CommandSanitizer] [SIN_SANDBOX] [BLOQUEADO] CMD='pytest' Sandbox Docker no disponible. Comando NO ejecutado en el host.
+[2026-08-09T18:01:14.640496+00:00] [CommandSanitizer] [INVALID_PATH] [BLOQUEADO] CMD='python3 script.py' La ruta solicitada 'script.py' no existe físicamente en el disco.
+[2026-08-09T18:01:16.071964+00:00] [CommandSanitizer] [CONFIRMACION] [REQUIERE_AUTORIZACION] CMD='python3 agente.py' 
+[2026-08-09T18:01:17.672257+00:00] [CommandSanitizer] [SIN_SANDBOX] [BLOQUEADO] CMD='python3 agente.py' Sandbox Docker no disponible. Comando NO ejecutado en el host.
+[2026-08-09T19:41:12.766995+00:00] [CommandSanitizer] [ARG_OUT_OF_BOUNDS] [BLOQUEADO] CMD='pytest /Users/danielcifuentes/Desktop/Sexto Semestre/Programacion Web/Pruebas/test_calculadora.py' Acceso denegado: El directorio padre de '/Users/danielcifuentes/Desktop/Sexto' se resuelve fuera del workspace autorizado.
+[2026-08-10T00:02:25.046273+00:00] [CommandSanitizer] [INVALID_PATH] [BLOQUEADO] CMD='python3 script.py' La ruta solicitada 'script.py' no existe físicamente en el disco.
+[2026-08-10T00:35:30.142778+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='python3 --version; echo "---"; which python3; echo "---"; python3 -c "import json; print('json: disponible')"; echo "---"; python3 -c "import sys; print('Python path:', sys.executable)"' Sintaxis de shell no permitida
+[2026-08-10T00:35:32.767544+00:00] [CommandSanitizer] [SANDBOX] [EJECUTANDO] CMD='python3 --version' Docker sandbox
+[2026-08-10T00:35:34.240250+00:00] [CommandSanitizer] [SANDBOX] [EXITO] CMD='python3 --version' exit_code=0
+[2026-08-10T00:35:36.593620+00:00] [CommandSanitizer] [SANDBOX] [EJECUTANDO] CMD='pytest --version' Docker sandbox
+[2026-08-10T00:35:36.953274+00:00] [CommandSanitizer] [SANDBOX] [PROCESO_FALLIDO] CMD='pytest --version' exit_code=2
+[2026-08-10T00:35:36.953923+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='python3 -c "import json; print('json disponible')"' Sintaxis de shell no permitida
+[2026-08-10T00:35:39.676514+00:00] [CommandSanitizer] [SANDBOX] [EJECUTANDO] CMD='python3 -m pytest --version' Docker sandbox
+[2026-08-10T00:35:39.830977+00:00] [CommandSanitizer] [SANDBOX] [PROCESO_FALLIDO] CMD='python3 -m pytest --version' exit_code=1
+[2026-08-10T00:35:39.831685+00:00] [CommandSanitizer] [CONFIRMACION] [REQUIERE_AUTORIZACION] CMD='pip --version' 
+[2026-08-10T00:36:01.149526+00:00] [CommandSanitizer] [SANDBOX] [EJECUTANDO] CMD='pip --version' Docker sandbox
+[2026-08-10T00:36:01.884086+00:00] [CommandSanitizer] [SANDBOX] [EXITO] CMD='pip --version' exit_code=0
+[2026-08-10T00:36:05.800916+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='python3 -c "import unittest; print('unittest OK')"' Sintaxis de shell no permitida
+[2026-08-10T00:36:08.143483+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='python3 -c "import unittest, json, tempfile, os; print('modulos std ok')"' Sintaxis de shell no permitida
+[2026-08-10T00:36:11.206931+00:00] [CommandSanitizer] [PROHIBIDO] [BLOQUEADO] CMD='python3 -c "import unittest"' python -c prohibido
+[2026-08-10T00:36:18.885772+00:00] [CommandSanitizer] [CONFIRMACION] [REQUIERE_AUTORIZACION] CMD='python3 scratch/check_env.py' 
+[2026-08-10T00:36:57.285830+00:00] [CommandSanitizer] [SANDBOX] [EJECUTANDO] CMD='python3 scratch/check_env.py' Docker sandbox
+[2026-08-10T00:36:57.632296+00:00] [CommandSanitizer] [SANDBOX] [EXITO] CMD='python3 scratch/check_env.py' exit_code=0
+[2026-08-10T00:37:58.794037+00:00] [CommandSanitizer] [SANDBOX] [EJECUTANDO] CMD='python3 -m unittest tests/test_gestor.py -v' Docker sandbox
+[2026-08-10T00:37:59.183415+00:00] [CommandSanitizer] [SANDBOX] [EXITO] CMD='python3 -m unittest tests/test_gestor.py -v' exit_code=0
+[2026-08-10T00:38:02.005879+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='python3 -m gestor_tareas --help 2>&1 | head -5' Sintaxis de shell no permitida
+[2026-08-10T00:38:11.322974+00:00] [CommandSanitizer] [CONFIRMACION] [REQUIERE_AUTORIZACION] CMD='python3 scratch/smoke_cli.py' 
+[2026-08-10T00:38:15.375841+00:00] [CommandSanitizer] [SANDBOX] [EJECUTANDO] CMD='python3 scratch/smoke_cli.py' Docker sandbox
+[2026-08-10T00:38:15.916388+00:00] [CommandSanitizer] [SANDBOX] [EXITO] CMD='python3 scratch/smoke_cli.py' exit_code=0
+[2026-08-10T00:38:19.514706+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls -la tareas.json 2>/dev/null || echo "sin archivo residual"' Sintaxis de shell no permitida
+[2026-08-10T00:38:26.068880+00:00] [CommandSanitizer] [SANDBOX] [EJECUTANDO] CMD='python3 -m unittest discover -s tests -p "test_gestor.py" -v' Docker sandbox
+[2026-08-10T00:38:26.404347+00:00] [CommandSanitizer] [SANDBOX] [EXITO] CMD='python3 -m unittest discover -s tests -p "test_gestor.py" -v' exit_code=0
+[2026-08-10T00:40:02.324111+00:00] [CommandSanitizer] [SANDBOX] [EJECUTANDO] CMD='pwd' Docker sandbox
+[2026-08-10T00:40:02.549373+00:00] [CommandSanitizer] [SANDBOX] [EXITO] CMD='pwd' exit_code=0
+[2026-08-10T00:42:16.282570+00:00] [CommandSanitizer] [SANDBOX] [EJECUTANDO] CMD='pwd' Docker sandbox
+[2026-08-10T00:42:16.484786+00:00] [CommandSanitizer] [SANDBOX] [EXITO] CMD='pwd' exit_code=0
+[2026-08-10T00:42:16.485150+00:00] [CommandSanitizer] [SANDBOX] [EJECUTANDO] CMD='ls -la' Docker sandbox
+[2026-08-10T00:42:16.604306+00:00] [CommandSanitizer] [SANDBOX] [EXITO] CMD='ls -la' exit_code=0
+[2026-08-10T01:13:13.204684+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='node --version; npm --version; which node npm' Sintaxis de shell no permitida
+[2026-08-10T01:13:16.188159+00:00] [CommandSanitizer] [SANDBOX] [EJECUTANDO] CMD='node --version' Docker sandbox
+[2026-08-10T01:13:17.548294+00:00] [CommandSanitizer] [SANDBOX] [PROCESO_FALLIDO] CMD='node --version' exit_code=127
+[2026-08-10T01:13:17.549246+00:00] [CommandSanitizer] [SANDBOX] [EJECUTANDO] CMD='npm --version' Docker sandbox
+[2026-08-10T01:13:17.654341+00:00] [CommandSanitizer] [SANDBOX] [PROCESO_FALLIDO] CMD='npm --version' exit_code=127
+[2026-08-10T01:13:52.095958+00:00] [CommandSanitizer] [SANDBOX] [EJECUTANDO] CMD='python3 --version' Docker sandbox
+[2026-08-10T01:13:52.294333+00:00] [CommandSanitizer] [SANDBOX] [EXITO] CMD='python3 --version' exit_code=0
+[2026-08-10T01:13:55.802007+00:00] [CommandSanitizer] [SANDBOX] [EJECUTANDO] CMD='python3 -m unittest discover -s tests -p "test_gestor.py" -v' Docker sandbox
+[2026-08-10T01:13:56.149801+00:00] [CommandSanitizer] [SANDBOX] [EXITO] CMD='python3 -m unittest discover -s tests -p "test_gestor.py" -v' exit_code=0
+[2026-08-10T01:14:31.845599+00:00] [CommandSanitizer] [SANDBOX] [EJECUTANDO] CMD='git status' Docker sandbox
+[2026-08-10T01:14:31.988462+00:00] [CommandSanitizer] [SANDBOX] [PROCESO_FALLIDO] CMD='git status' exit_code=127
+[2026-08-10T01:15:47.303422+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='find . -name "mod.py" -type f 2>/dev/null' Sintaxis de shell no permitida
+[2026-08-10T01:16:49.481987+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='python3 --version && python3 -m unittest discover -s tests -p "test_gestor.py" -v' Sintaxis de shell no permitida
+[2026-08-10T01:16:52.406728+00:00] [CommandSanitizer] [SANDBOX] [EJECUTANDO] CMD='python3 --version' Docker sandbox
+[2026-08-10T01:16:52.605744+00:00] [CommandSanitizer] [SANDBOX] [EXITO] CMD='python3 --version' exit_code=0
+[2026-08-10T01:16:55.300316+00:00] [CommandSanitizer] [SANDBOX] [EJECUTANDO] CMD='python3 -m unittest discover -s tests -p "test_gestor.py" -v' Docker sandbox
+[2026-08-10T01:16:55.650264+00:00] [CommandSanitizer] [SANDBOX] [EXITO] CMD='python3 -m unittest discover -s tests -p "test_gestor.py" -v' exit_code=0
+[2026-08-10T01:17:16.808446+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='python3 --version; pip --version; echo "---"; ls -la' Sintaxis de shell no permitida
+[2026-08-10T01:17:19.418920+00:00] [CommandSanitizer] [SANDBOX] [EJECUTANDO] CMD='python3 --version' Docker sandbox
+[2026-08-10T01:17:19.647691+00:00] [CommandSanitizer] [SANDBOX] [EXITO] CMD='python3 --version' exit_code=0
+[2026-08-10T01:17:29.603147+00:00] [CommandSanitizer] [SANDBOX] [EJECUTANDO] CMD='python3 -m unittest tests/test_gestor.py -v' Docker sandbox
+[2026-08-10T01:17:29.908448+00:00] [CommandSanitizer] [SANDBOX] [EXITO] CMD='python3 -m unittest tests/test_gestor.py -v' exit_code=0
+[2026-08-10T01:17:35.144052+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='python3 -c " from gestor_tareas.gestor import GestorTareas from gestor_tareas.repositorio import RepositorioTareas import tempfile, os fd, ruta = tempfile.mkstemp(suffix='.json'); os.close(fd); os.remove(ruta) g = GestorTareas(RepositorioTareas(ruta)) g.crear('Primera tarea') g.crear('Segunda tarea') g.marcar_completada(1) print('LISTAR:', [str(t) for t in g.listar()]) print('PERSISTENCIA:', os.path.exists(ruta)) g.eliminar(2) print('TRAS ELIMINAR:', [str(t) for t in g.listar()]) os.remove(ruta) print('SMOKE OK') "' Sintaxis de shell no permitida
+[2026-08-10T01:17:35.145711+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='python3 -c "import gestor_tareas; print('Modulo OK, version', gestor_tareas.__version__)"' Sintaxis de shell no permitida
+[2026-08-10T01:17:51.525386+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='python3 --version && echo "---" && ls -la tareas.json 2>/dev/null || echo "no tareas.json todavía"' Sintaxis de shell no permitida
+[2026-08-10T01:17:54.955957+00:00] [CommandSanitizer] [SANDBOX] [EJECUTANDO] CMD='python3 --version' Docker sandbox
+[2026-08-10T01:17:55.174645+00:00] [CommandSanitizer] [SANDBOX] [EXITO] CMD='python3 --version' exit_code=0
+[2026-08-10T01:17:55.175313+00:00] [CommandSanitizer] [SANDBOX] [EJECUTANDO] CMD='python3 -m unittest tests/test_gestor.py -v' Docker sandbox
+[2026-08-10T01:17:55.489736+00:00] [CommandSanitizer] [SANDBOX] [EXITO] CMD='python3 -m unittest tests/test_gestor.py -v' exit_code=0
+[2026-08-10T01:18:01.654370+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='python3 -c "import gestor_tareas; print('version:', gestor_tareas.__version__); print('exports:', gestor_tareas.__all__)"' Sintaxis de shell no permitida
+[2026-08-10T01:18:01.655137+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='python3 -c "from gestor_tareas import GestorTareas, RepositorioTareas; r=RepositorioTareas('tareas_demo.json'); g=GestorTareas(r); g.crear('Primera tarea'); g.crear('Segunda tarea'); g.marcar_completada(2); print(g.listar()); import os; data=open('tareas_demo.json').read(); print('JSON guardado:', data); os.remove('tareas_demo.json')"' Sintaxis de shell no permitida
+[2026-08-10T01:18:10.887218+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='node --version; python3 --version; go version; java -version 2>&1 | head -1' Sintaxis de shell no permitida
+[2026-08-10T01:18:13.341909+00:00] [CommandSanitizer] [SANDBOX] [EJECUTANDO] CMD='which node python3 go java' Docker sandbox
+[2026-08-10T01:18:13.545606+00:00] [CommandSanitizer] [SANDBOX] [PROCESO_FALLIDO] CMD='which node python3 go java' exit_code=1
+[2026-08-10T01:18:39.951810+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='grep -n "^def " herramientas.py | head -60' Sintaxis de shell no permitida
+[2026-08-10T01:18:39.952897+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='grep -n "herramienta\|tools\|Tools\|TOOL" agente.py | head -40' Sintaxis de shell no permitida
+[2026-08-10T01:18:42.817968+00:00] [CommandSanitizer] [SANDBOX] [EJECUTANDO] CMD='grep -n "^def " herramientas.py' Docker sandbox
+[2026-08-10T01:18:42.969639+00:00] [CommandSanitizer] [SANDBOX] [EXITO] CMD='grep -n "^def " herramientas.py' exit_code=0
+[2026-08-10T01:18:42.970155+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='grep -n "herramienta\|tool" agente.py' Sintaxis de shell no permitida
+[2026-08-10T01:51:54.473754+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls && cat' Sintaxis de shell no permitida
+[2026-08-10T01:51:54.476153+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls ; cat' Sintaxis de shell no permitida
+[2026-08-10T01:51:54.476373+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls || cat' Sintaxis de shell no permitida
+[2026-08-10T01:51:54.476474+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls | cat' Sintaxis de shell no permitida
+[2026-08-10T01:51:54.476563+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a > b' Sintaxis de shell no permitida
+[2026-08-10T01:51:54.476654+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a >> b' Sintaxis de shell no permitida
+[2026-08-10T01:51:54.476726+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo $(whoami)' Sintaxis de shell no permitida
+[2026-08-10T01:51:54.476803+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo `whoami`' Sintaxis de shell no permitida
+[2026-08-10T01:52:18.610574+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls && cat' Sintaxis de shell no permitida
+[2026-08-10T01:52:18.613048+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls ; cat' Sintaxis de shell no permitida
+[2026-08-10T01:52:18.613135+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls || cat' Sintaxis de shell no permitida
+[2026-08-10T01:52:18.613191+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls | cat' Sintaxis de shell no permitida
+[2026-08-10T01:52:18.613242+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a > b' Sintaxis de shell no permitida
+[2026-08-10T01:52:18.613292+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a >> b' Sintaxis de shell no permitida
+[2026-08-10T01:52:18.613338+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo $(whoami)' Sintaxis de shell no permitida
+[2026-08-10T01:52:18.613382+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo `whoami`' Sintaxis de shell no permitida
+[2026-08-10T02:10:36.371446+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls && cat' Sintaxis de shell no permitida
+[2026-08-10T02:10:36.373446+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls ; cat' Sintaxis de shell no permitida
+[2026-08-10T02:10:36.373717+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls || cat' Sintaxis de shell no permitida
+[2026-08-10T02:10:36.373837+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls | cat' Sintaxis de shell no permitida
+[2026-08-10T02:10:36.373933+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a > b' Sintaxis de shell no permitida
+[2026-08-10T02:10:36.374048+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a >> b' Sintaxis de shell no permitida
+[2026-08-10T02:10:36.374199+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo $(whoami)' Sintaxis de shell no permitida
+[2026-08-10T02:10:36.374299+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo `whoami`' Sintaxis de shell no permitida
+[2026-08-10T02:14:09.277349+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls && cat' Sintaxis de shell no permitida
+[2026-08-10T02:14:09.278989+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls ; cat' Sintaxis de shell no permitida
+[2026-08-10T02:14:09.279118+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls || cat' Sintaxis de shell no permitida
+[2026-08-10T02:14:09.279210+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls | cat' Sintaxis de shell no permitida
+[2026-08-10T02:14:09.279294+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a > b' Sintaxis de shell no permitida
+[2026-08-10T02:14:09.279378+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a >> b' Sintaxis de shell no permitida
+[2026-08-10T02:14:09.279457+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo $(whoami)' Sintaxis de shell no permitida
+[2026-08-10T02:14:09.279538+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo `whoami`' Sintaxis de shell no permitida
+[2026-08-10T02:16:52.296537+00:00] [CommandSanitizer] [SANDBOX] [EJECUTANDO] CMD='python3 --version' Docker sandbox
+[2026-08-10T02:16:52.439865+00:00] [CommandSanitizer] [SANDBOX] [EXITO] CMD='python3 --version' exit_code=0
+[2026-08-10T02:16:54.932704+00:00] [CommandSanitizer] [SANDBOX] [EJECUTANDO] CMD='python3 -m unittest tests/test_gestor.py -v' Docker sandbox
+[2026-08-10T02:16:55.239554+00:00] [CommandSanitizer] [SANDBOX] [EXITO] CMD='python3 -m unittest tests/test_gestor.py -v' exit_code=0
+[2026-08-10T02:16:58.527752+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='python3 -c "import gestor_tareas; print('version', gestor_tareas.__version__)"' Sintaxis de shell no permitida
+[2026-08-10T02:17:00.966686+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='python3 -c "import gestor_tareas; print('version', gestor_tareas.__version__)"' Sintaxis de shell no permitida
+[2026-08-10T02:17:10.064524+00:00] [CommandSanitizer] [CONFIRMACION] [REQUIERE_AUTORIZACION] CMD='python3 scratch/verificar_app.py' 
+[2026-08-10T02:17:16.833720+00:00] [CommandSanitizer] [CONFIRMACION] [REQUIERE_AUTORIZACION] CMD='python3 scratch/verificar_app.py' 
+[2026-08-10T02:17:21.120300+00:00] [CommandSanitizer] [CONFIRMACION] [REQUIERE_AUTORIZACION] CMD='python3 -m gestor_tareas' 
+[2026-08-10T03:28:18.837718+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls && cat' Sintaxis de shell no permitida
+[2026-08-10T03:28:18.839146+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls ; cat' Sintaxis de shell no permitida
+[2026-08-10T03:28:18.839295+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls || cat' Sintaxis de shell no permitida
+[2026-08-10T03:28:18.839404+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls | cat' Sintaxis de shell no permitida
+[2026-08-10T03:28:18.839497+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a > b' Sintaxis de shell no permitida
+[2026-08-10T03:28:18.839588+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a >> b' Sintaxis de shell no permitida
+[2026-08-10T03:28:18.839684+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo $(whoami)' Sintaxis de shell no permitida
+[2026-08-10T03:28:18.839780+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo `whoami`' Sintaxis de shell no permitida
+[2026-08-10T03:28:41.664516+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls && cat' Sintaxis de shell no permitida
+[2026-08-10T03:28:41.667156+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls ; cat' Sintaxis de shell no permitida
+[2026-08-10T03:28:41.667288+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls || cat' Sintaxis de shell no permitida
+[2026-08-10T03:28:41.667394+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls | cat' Sintaxis de shell no permitida
+[2026-08-10T03:28:41.667504+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a > b' Sintaxis de shell no permitida
+[2026-08-10T03:28:41.667596+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a >> b' Sintaxis de shell no permitida
+[2026-08-10T03:28:41.667686+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo $(whoami)' Sintaxis de shell no permitida
+[2026-08-10T03:28:41.667771+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo `whoami`' Sintaxis de shell no permitida
+[2026-08-10T03:30:01.232432+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls && cat' Sintaxis de shell no permitida
+[2026-08-10T03:30:01.234056+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls ; cat' Sintaxis de shell no permitida
+[2026-08-10T03:30:01.234192+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls || cat' Sintaxis de shell no permitida
+[2026-08-10T03:30:01.234303+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls | cat' Sintaxis de shell no permitida
+[2026-08-10T03:30:01.234406+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a > b' Sintaxis de shell no permitida
+[2026-08-10T03:30:01.234505+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a >> b' Sintaxis de shell no permitida
+[2026-08-10T03:30:01.234615+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo $(whoami)' Sintaxis de shell no permitida
+[2026-08-10T03:30:01.234710+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo `whoami`' Sintaxis de shell no permitida
+[2026-08-10T03:31:25.834950+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls && cat' Sintaxis de shell no permitida
+[2026-08-10T03:31:25.836199+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls ; cat' Sintaxis de shell no permitida
+[2026-08-10T03:31:25.836317+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls || cat' Sintaxis de shell no permitida
+[2026-08-10T03:31:25.836402+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls | cat' Sintaxis de shell no permitida
+[2026-08-10T03:31:25.836480+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a > b' Sintaxis de shell no permitida
+[2026-08-10T03:31:25.836554+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a >> b' Sintaxis de shell no permitida
+[2026-08-10T03:31:25.836632+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo $(whoami)' Sintaxis de shell no permitida
+[2026-08-10T03:31:25.836712+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo `whoami`' Sintaxis de shell no permitida
+[2026-08-10T03:32:50.394016+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls && cat' Sintaxis de shell no permitida
+[2026-08-10T03:32:50.396633+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls ; cat' Sintaxis de shell no permitida
+[2026-08-10T03:32:50.396756+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls || cat' Sintaxis de shell no permitida
+[2026-08-10T03:32:50.396833+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls | cat' Sintaxis de shell no permitida
+[2026-08-10T03:32:50.396907+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a > b' Sintaxis de shell no permitida
+[2026-08-10T03:32:50.396976+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a >> b' Sintaxis de shell no permitida
+[2026-08-10T03:32:50.397042+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo $(whoami)' Sintaxis de shell no permitida
+[2026-08-10T03:32:50.397107+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo `whoami`' Sintaxis de shell no permitida
+[2026-08-10T03:34:53.374815+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls && cat' Sintaxis de shell no permitida
+[2026-08-10T03:34:53.376417+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls ; cat' Sintaxis de shell no permitida
+[2026-08-10T03:34:53.376504+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls || cat' Sintaxis de shell no permitida
+[2026-08-10T03:34:53.376564+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls | cat' Sintaxis de shell no permitida
+[2026-08-10T03:34:53.376620+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a > b' Sintaxis de shell no permitida
+[2026-08-10T03:34:53.376677+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a >> b' Sintaxis de shell no permitida
+[2026-08-10T03:34:53.376733+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo $(whoami)' Sintaxis de shell no permitida
+[2026-08-10T03:34:53.376788+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo `whoami`' Sintaxis de shell no permitida
+[2026-08-10T03:37:11.008971+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls && cat' Sintaxis de shell no permitida
+[2026-08-10T03:37:11.011488+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls ; cat' Sintaxis de shell no permitida
+[2026-08-10T03:37:11.011651+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls || cat' Sintaxis de shell no permitida
+[2026-08-10T03:37:11.011747+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls | cat' Sintaxis de shell no permitida
+[2026-08-10T03:37:11.011831+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a > b' Sintaxis de shell no permitida
+[2026-08-10T03:37:11.011911+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a >> b' Sintaxis de shell no permitida
+[2026-08-10T03:37:11.011987+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo $(whoami)' Sintaxis de shell no permitida
+[2026-08-10T03:37:11.012069+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo `whoami`' Sintaxis de shell no permitida
+[2026-08-10T03:47:02.215770+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls && cat' Sintaxis de shell no permitida
+[2026-08-10T03:47:02.216905+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls ; cat' Sintaxis de shell no permitida
+[2026-08-10T03:47:02.217068+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls || cat' Sintaxis de shell no permitida
+[2026-08-10T03:47:02.217183+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls | cat' Sintaxis de shell no permitida
+[2026-08-10T03:47:02.217281+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a > b' Sintaxis de shell no permitida
+[2026-08-10T03:47:02.217403+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a >> b' Sintaxis de shell no permitida
+[2026-08-10T03:47:02.217495+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo $(whoami)' Sintaxis de shell no permitida
+[2026-08-10T03:47:02.217586+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo `whoami`' Sintaxis de shell no permitida
+[2026-08-10T03:50:18.070120+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls && cat' Sintaxis de shell no permitida
+[2026-08-10T03:50:18.071211+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls ; cat' Sintaxis de shell no permitida
+[2026-08-10T03:50:18.071335+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls || cat' Sintaxis de shell no permitida
+[2026-08-10T03:50:18.071421+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls | cat' Sintaxis de shell no permitida
+[2026-08-10T03:50:18.071502+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a > b' Sintaxis de shell no permitida
+[2026-08-10T03:50:18.071582+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a >> b' Sintaxis de shell no permitida
+[2026-08-10T03:50:18.071656+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo $(whoami)' Sintaxis de shell no permitida
+[2026-08-10T03:50:18.071731+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo `whoami`' Sintaxis de shell no permitida
+[2026-08-10T03:57:22.202899+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls && cat' Sintaxis de shell no permitida
+[2026-08-10T03:57:22.205170+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls ; cat' Sintaxis de shell no permitida
+[2026-08-10T03:57:22.205307+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls || cat' Sintaxis de shell no permitida
+[2026-08-10T03:57:22.205385+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls | cat' Sintaxis de shell no permitida
+[2026-08-10T03:57:22.205453+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a > b' Sintaxis de shell no permitida
+[2026-08-10T03:57:22.205519+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a >> b' Sintaxis de shell no permitida
+[2026-08-10T03:57:22.205596+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo $(whoami)' Sintaxis de shell no permitida
+[2026-08-10T03:57:22.205667+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo `whoami`' Sintaxis de shell no permitida
+[2026-08-10T04:00:19.301543+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls && cat' Sintaxis de shell no permitida
+[2026-08-10T04:00:19.302154+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls ; cat' Sintaxis de shell no permitida
+[2026-08-10T04:00:19.302224+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls || cat' Sintaxis de shell no permitida
+[2026-08-10T04:00:19.302280+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls | cat' Sintaxis de shell no permitida
+[2026-08-10T04:00:19.302333+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a > b' Sintaxis de shell no permitida
+[2026-08-10T04:00:19.302385+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a >> b' Sintaxis de shell no permitida
+[2026-08-10T04:00:19.302439+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo $(whoami)' Sintaxis de shell no permitida
+[2026-08-10T04:00:19.302495+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo `whoami`' Sintaxis de shell no permitida
+[2026-08-10T04:02:20.053309+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls && cat' Sintaxis de shell no permitida
+[2026-08-10T04:02:20.054233+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls ; cat' Sintaxis de shell no permitida
+[2026-08-10T04:02:20.054364+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls || cat' Sintaxis de shell no permitida
+[2026-08-10T04:02:20.054469+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls | cat' Sintaxis de shell no permitida
+[2026-08-10T04:02:20.054564+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a > b' Sintaxis de shell no permitida
+[2026-08-10T04:02:20.054659+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a >> b' Sintaxis de shell no permitida
+[2026-08-10T04:02:20.054756+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo $(whoami)' Sintaxis de shell no permitida
+[2026-08-10T04:02:20.054848+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo `whoami`' Sintaxis de shell no permitida
+[2026-08-10T04:07:01.651920+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls && cat' Sintaxis de shell no permitida
+[2026-08-10T04:07:01.652337+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls ; cat' Sintaxis de shell no permitida
+[2026-08-10T04:07:01.652390+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls || cat' Sintaxis de shell no permitida
+[2026-08-10T04:07:01.652450+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='ls | cat' Sintaxis de shell no permitida
+[2026-08-10T04:07:01.652481+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a > b' Sintaxis de shell no permitida
+[2026-08-10T04:07:01.652509+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo a >> b' Sintaxis de shell no permitida
+[2026-08-10T04:07:01.652537+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo $(whoami)' Sintaxis de shell no permitida
+[2026-08-10T04:07:01.652565+00:00] [CommandSanitizer] [INYECCION] [BLOQUEADO] CMD='echo `whoami`' Sintaxis de shell no permitida

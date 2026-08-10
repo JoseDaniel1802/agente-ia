@@ -1,0 +1,81 @@
+# Dockerfile.sandbox — Imagen de desarrollo web offline para Muss_Code Sandbox
+FROM python:3.12-slim AS base
+
+# 1. Copiar Node.js 22 LTS y npm desde la imagen oficial node:22-slim
+COPY --from=node:22-slim /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:22-slim /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
+    ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
+
+# Instalar git para empaquetamiento npm
+RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+
+# 2. Instalar CLIs globales de desarrollo, build, linting y testing
+RUN npm install -g \
+    typescript \
+    tsx \
+    ts-node \
+    @nestjs/cli \
+    vite \
+    create-vite \
+    eslint \
+    @typescript-eslint/parser \
+    prettier \
+    vitest
+
+# 3. Poblar almacén offline /var/pkg-store y caché global pre-poblada /var/pkg-cache
+WORKDIR /tmp/npm-pack
+RUN npm config set cache /var/pkg-cache --global && \
+    npm init -y && \
+    npm install \
+        express \
+        @types/express \
+        @types/node \
+        rxjs \
+        reflect-metadata \
+        @nestjs/core \
+        @nestjs/common \
+        dotenv && \
+    mkdir -p /var/pkg-store && \
+    node -e ' \
+      const fs = require("fs"); \
+      const path = require("path"); \
+      const { execSync } = require("child_process"); \
+      function findPackageDirs(dir, list = []) { \
+        if (!fs.existsSync(dir)) return list; \
+        const entries = fs.readdirSync(dir, { withFileTypes: true }); \
+        for (const entry of entries) { \
+          const full = path.join(dir, entry.name); \
+          if (entry.isDirectory()) { \
+            if (entry.name === "node_modules" || entry.name.startsWith("@")) { \
+              findPackageDirs(full, list); \
+            } else if (fs.existsSync(path.join(full, "package.json"))) { \
+              list.push(full); \
+              const nested = path.join(full, "node_modules"); \
+              if (fs.existsSync(nested)) findPackageDirs(nested, list); \
+            } \
+          } \
+        } \
+        return list; \
+      } \
+      const pkgDirs = findPackageDirs("node_modules"); \
+      const map = {}; \
+      for (const dir of pkgDirs) { \
+        try { \
+          const pkg = JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8")); \
+          if (pkg.name && pkg.name !== "npm-pack") { \
+            const out = execSync("npm pack --pack-destination /var/pkg-store", { cwd: dir, encoding: "utf8" }).trim(); \
+            const tgzFile = out.split("\n").pop().trim(); \
+            map[pkg.name] = "/var/pkg-store/" + tgzFile; \
+          } \
+        } catch(e) {} \
+      } \
+      fs.writeFileSync("/var/pkg-store/index.json", JSON.stringify(map)); \
+    ' && \
+    chmod -R 777 /var/pkg-store /var/pkg-cache && \
+    rm -rf /tmp/npm-pack
+
+# 4. Instalar runner de pruebas pytest para Python
+RUN pip install --no-cache-dir pytest
+
+WORKDIR /workspace
