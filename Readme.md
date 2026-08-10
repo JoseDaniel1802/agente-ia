@@ -1,173 +1,207 @@
-# Muss_Code 🐕 🌭
+# Muss_Code 🐕 🌭 — Agente Autónomo de Desarrollo de Software
 
-**Muss_Code** es un agente autónomo de desarrollo de software construido sobre la API de NVIDIA (compatible con OpenAI). Expone herramientas locales para análisis de requisitos, revisión de código, generación de pruebas, validación de alcance, detección de cambios y plan de trabajo, todo bajo un **ciclo autónomo de agent loop** (inspección → implementación → verificación → reparación) con sandbox aislado en Docker.
-
----
-
-## ✨ Características principales
-
-- **Agent Loop autónomo**: procesa la tarea mediante llamadas a herramientas hasta obtener una respuesta verificada, con protección contra bucles infinitos (límite de iteraciones y detección de llamadas repetidas).
-- **Ciclo de vida de tareas**: estados `IDLE`, `ACTIVE`, `COMPLETED`, `FAILED`, `CANCELLED` y fases `INSPECTION`, `IMPLEMENTATION`, `VERIFICATION`, `REPAIR`, `COMPLETION`.
-- **12 herramientas locales**: análisis de requisitos, revisión de código, generación de pruebas, validación de alcance, detección de cambios, plan de trabajo, listado de directorio, lectura/escritura/edición de archivos, búsqueda en el proyecto y ejecución de comandos.
-- **Metodología *Environment First***: la creación de archivos fuente no exige runtimes; la ejecución de comandos valida primero la disponibilidad del runtime en el sandbox.
-- **Seguridad en capas**: aislamiento de rutas (WorkspaceManager), saneamiento de comandos (CommandSanitizer), sandbox Docker (SandboxManager), defensa contra *prompt injection* y autorización humana interactiva.
-- **Interfaz CLI enriquecida** con Rich y menus interactivos de Questionary (comandos `/help`, `/status`, `/tools`, `/workspace`, `/clear`, `/exit`).
+**Muss_Code** es un agente autónomo de desarrollo de software construido en Python sobre la API de OpenAI/NVIDIA. Analiza requisitos, revisa código, genera pruebas unitarias, detecta cambios, planifica y ejecuta tareas de forma autónoma mediante un **Agent Loop** en un entorno Sandbox aislado con **Docker** sin acceso a Internet.
 
 ---
 
-## 🛠️ Tecnologías
-
-- **Python 3** (biblioteca estándar + dependencias listadas en `requirements.txt`).
-- **OpenAI SDK** para la comunicación con el modelo LLM.
-- Proveedores soportados: **NVIDIA**, **DeepSeek**, **Groq** u **OpenAI** (se selecciona según la clave de entorno disponible).
-- **Docker** como sandbox de ejecución aislado.
-- **Rich** y **Questionary** para la interfaz de terminal.
-
-Dependencias (`requirements.txt`):
-
-```
-openai>=1.0.0
-python-dotenv>=1.0.0
-pytest>=8.0.0
-rich>=13.0.0
-questionary>=2.0.0
-```
+## 📑 Tabla de Contenidos
+1. [🚀 Guía Rápida: Instalación y Modo de Uso](#-guía-rápida-instalación-y-modo-de-uso)
+2. [🤖 ¿Cómo Funciona el Agente?](#-cómo-funciona-el-agente)
+3. [🧩 Arquitectura y Componentes](#-arquitectura-y-componentes)
+4. [🔒 Modelo de Seguridad y Sandbox Docker](#-modelo-de-seguridad-y-sandbox-docker)
+5. [🌐 Entorno de Desarrollo Web Offline](#-entorno-de-desarrollo-web-offline)
+6. [📁 Estructura del Proyecto](#-estructura-del-proyecto)
+7. [🧪 Ejecución de Pruebas](#-ejecución-de-pruebas)
 
 ---
 
-## 📁 Estructura del proyecto
+## 🚀 Guía Rápida: Instalación y Modo de Uso
 
-```
-.
-├── main.py                  # CLI principal: bienvenida y bucle de conversación
-├── agente.py                # cliente LLM, esquemas de tools, ChatSession y Agent Loop
-├── herramientas.py          # las 12 herramientas locales que el modelo puede llamar
-├── seguridad.py             # WorkspaceManager y CommandSanitizer (aislamiento y saneamiento)
-├── sandbox.py               # SandboxManager (ejecución aislada en Docker)
-├── instrucciones.py         # personalidad y reglas del agente (mensaje de sistema)
-├── Readme.md                # este documento
-├── requirements.txt         # dependencias del proyecto
-├── cli/                     # interfaz de línea de comandos
-│   ├── interfaz.py          # bucle de conversación y manejo de señales
-│   ├── comandos.py          # comandos slash y menús interactivos
-│   └── presentacion.py      # salida formateada con Rich
-├── gestor_tareas/           # Tarea 1: gestor de tareas con persistencia JSON
-│   ├── modelo.py            # clase Tarea
-│   ├── repositorio.py       # carga/guardado JSON
-│   ├── gestor.py            # lógica de negocio (crear, listar, completar, eliminar)
-│   ├── cli.py               # menú interactivo del gestor
-│   ├── __init__.py          # paquete (v1.0.0)
-│   └── __main__.py          # ejecución con `python -m gestor_tareas`
-├── tests/                   # suites de pruebas unitarias e integración
-└── scratch/                 # scripts auxiliares de verificación y E2E
-```
+### 1. Requisitos Previos
+- **Python 3.12+**
+- **Docker Desktop** (debe estar abierto y corriendo)
 
----
+### 2. Instalación
+1. Clona el repositorio y entra en la carpeta:
+   ```bash
+   git clone git@github.com:JoseDaniel1802/agente-ia.git
+   cd agente-ia
+   ```
 
-## 🚀 Instalación
-
-1. Clona el repositorio y entra en la carpeta.
-2. Crea y activa un entorno virtual:
-
+2. Crea y activa el entorno virtual de Python:
    ```bash
    python3 -m venv .venv
    source .venv/bin/activate   # Linux/macOS
    ```
 
 3. Instala las dependencias:
-
    ```bash
    pip install -r requirements.txt
    ```
 
-4. Configura tu clave de API en un archivo `.env` (no se commitea). Ejemplos:
-
+4. Configura tu clave de API en un archivo `.env` en la raíz del proyecto:
    ```env
-   # Proveedor NVIDIA
-   NVIDIA_API_KEY=tu_clave
+   NVIDIA_API_KEY=tu_clave_nvidia
    NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1
    NVIDIA_MODEL=meta/llama-3.1-70b-instruct
-
-   # o bien DeepSeek
-   DEEPSEEK_API_KEY=tu_clave
-   DEEPSEEK_BASE_URL=https://api.deepseek.com
-   DEEPSEEK_MODEL=deepseek-chat
-
-   # opcional: límite de seguridad del Agent Loop
-   MAX_TOOL_ITERATIONS=40
    ```
 
 ---
 
-## ▶️ Uso
+### 3. Modo de Uso
 
-Ejecuta la CLI:
+Inicia Muss_Code ejecutando el CLI principal:
 
 ```bash
 python3 main.py
 ```
 
-Escribe una tarea en lenguaje natural y Muss_Code la inspeccionará, implementará y verificará automáticamente. Ejemplos:
+Una vez iniciada la sesión interactiva, puedes escribir tus solicitudes en lenguaje natural. Ejemplos de uso:
 
+```text
+> Revisa la estructura del proyecto y analiza si hay errores de seguridad.
+> Crea una API con Express en TypeScript que exponga un endpoint /saludo y ejecuta las pruebas.
+> Refactoriza el módulo de comandos e implementa pruebas unitarias con pytest.
 ```
-Revisa los errores y principios SOLID del proyecto
-Crea un módulo y asegúrate de que funcione
-Refactoriza la documentación
-```
 
-### Comandos slash
+### Comandos Slash Disponibles en la Terminal
 
-| Comando      | Descripción                                   |
-|--------------|-----------------------------------------------|
-| `/help`      | Muestra la tabla de ayuda y comandos          |
-| `/status`    | Estado del agente, workspace y sandbox        |
-| `/tools`     | Lista las 12 herramientas registradas         |
-| `/workspace` | Muestra o cambia el workspace activo          |
-| `/clear`     | Limpia la pantalla de la terminal             |
-| `/exit`      | Cierra Muss_Code                              |
-
-También puedes salir escribiendo `salir`, `exit`, `quit` o `quit()`.
+| Comando | Descripción |
+| :--- | :--- |
+| `/help` | Muestra la tabla de ayuda y comandos del agente. |
+| `/status` | Muestra el estado del agente, workspace activo y disponibilidad de Docker Sandbox. |
+| `/tools` | Lista las 12 herramientas registradas en el sistema. |
+| `/workspace` | Muestra o cambia dinámicamente el workspace activo de trabajo. |
+| `/clear` | Limpia la consola de la terminal. |
+| `/exit` | Cierra la sesión de Muss_Code de forma segura. |
 
 ---
 
-## 🧪 Ejecutar pruebas
+## 🤖 ¿Cómo Funciona el Agente?
 
-Las suites usan `unittest` (biblioteca estándar):
+Muss_Code opera bajo un ciclo de decisión y ejecución autónoma (**Agent Loop**) que interactúa iterativamente con el modelo de lenguaje (LLM) y las herramientas del sistema local:
+
+```mermaid
+flowchart TD
+    A[Usuario ingresa solicitud en CLI] --> B[Agente recibe contexto e instrucciones]
+    B --> C[LLM analiza la tarea e invoca Herramientas]
+    C --> D{¿Es ejecución de comando?}
+    D -- Sí --> E[Preflight Check: Disponibilidad de Runtime]
+    E --> F[CommandSanitizer: Sanitización de Bash]
+    F --> G[SandboxManager: Ejecución en Docker aislada]
+    D -- No --> H[Ejecución Local de Herramienta de Lectura/Escritura]
+    G --> I[Respuesta de Herramienta a ChatSession]
+    H --> I
+    I --> J{¿Tarea completada o requiere más iteraciones?}
+    J -- Requerida --> C
+    J -- Completada --> K[Respuesta final verificada al Usuario]
+```
+
+### 🔄 Ciclo de Vida del Agent Loop
+1. **Inspección Inicial (Environment First):** Antes de proponer o ejecutar código, el agente inspecciona el workspace activo, estructura de archivos y contexto necesario.
+2. **Razonamiento y Selección de Herramientas:** El modelo genera llamadas a herramientas (*tool calls*) estructuradas en JSON.
+3. **Validación Pre-flight:** Si la herramienta requiere un runtime (ej. Node.js o Python), el sistema valida fail-closed que el contenedor Docker esté disponible.
+4. **Ejecución Aislada:** Los comandos se ejecutan dentro del sandbox efímero en Docker con límites estrictos de recursos.
+5. **Detección de Bucles y Límite de Iteraciones:** Se detectan invocaciones idénticas consecutivas y se aplica un límite máximo de iteraciones (`MAX_TOOL_ITERATIONS`) para prevenir bucles infinitos.
+6. **Seguimiento de Cambios (`TaskChangeState`):** Se registran de forma transparente los archivos creados, modificados, eliminados o restaurados durante la sesión.
+
+---
+
+## 🧩 Arquitectura y Componentes
+
+| Módulo | Descripción / Responsabilidad |
+| :--- | :--- |
+| **`main.py`** | Punto de entrada del sistema. Inicializa la CLI interactiva. |
+| **`agente.py`** | Cliente de API OpenAI/NVIDIA, esquemas JSON de las 12 herramientas, clase `ChatSession` y motor principal del Agent Loop. |
+| **`herramientas.py`** | Implementación de las 12 herramientas locales invocables por el LLM. |
+| **`seguridad.py`** | `WorkspaceManager` (prevención de Path Traversal) y `CommandSanitizer` (sanitización de Bash y desinfección de inyecciones). |
+| **`sandbox.py`** | `SandboxManager`: orquestador de contenedores efímeros Docker para la ejecución segura de comandos. |
+| **`instrucciones.py`** | Prompts del sistema, directivas de personalidad, reglas de no alucinación y principios de ingeniería de software. |
+| **`cli/`** | Interfaz rica de terminal desarrollada con `Rich` y `Questionary` (`interfaz.py`, `comandos.py`, `presentacion.py`). |
+| **`docker/Dockerfile.sandbox`** | Definición multi-stage de la imagen oficial del Sandbox offline (`muss_code_sandbox:latest`). |
+
+---
+
+## 🔒 Modelo de Seguridad y Sandbox Docker
+
+Muss_Code aplica un modelo de **Seguridad en Capas (Zero-Trust y Fail-Closed)**:
+
+### 1. Aislamiento en Docker (`SandboxManager`)
+Cada comando ejecutado dentro del sandbox se corre en un contenedor efímero basado en `muss_code_sandbox:latest` con las siguientes restricciones obligatorias:
+- **Red:** `--network none` (Red desactivada permanentemente durante la ejecución).
+- **Filesystem Raíz:** `--read-only` (El sistema de archivos raíz de la imagen es completamente inmutable).
+- **Directorio Temporal:** `--tmpfs /tmp:rw,noexec,nosuid,size=64m` (Memoria volátil en RAM para archivos temporales).
+- **Privilegios:** `--cap-drop ALL`, `--security-opt no-new-privileges`, `--user 1000:1000` (Usuario no-root sin capacidades).
+- **Volúmenes Montados:** Únicamente el workspace activo del usuario (`workspace:/workspace:rw`). Jamás se montan `$HOME`, `.ssh`, ni `/var/run/docker.sock`.
+- **Límites de Recursos:** `--memory 512m`, `--cpus 1.0`, `--pids-limit 64`, `timeout_max 120s`.
+
+### 2. Saneamiento de Comandos (`CommandSanitizer`)
+- Bloqueo de operadores de shell peligrosos (`&&`, `;`, `|`, `$()`, backticks, redirecciones `>`).
+- Bloqueo de binarios y comandos prohibidos (`sudo`, `su`, `curl`, `wget`, `nc`, `python -c`, `chmod`, `git config`).
+- Restricción de rutas fuera del workspace autorizado.
+
+### 3. Aislamiento de Rutas (`WorkspaceManager`)
+- Validación estricta para evitar ataques de *Path Traversal* (`../`).
+- Denylist de archivos sensibles que el agente jamás puede leer o modificar (`.env`, `*.pem`, claves privadas).
+
+---
+
+## 🌐 Entorno de Desarrollo Web Offline
+
+La imagen Docker `muss_code_sandbox:latest` combina **Python 3.12** y **Node.js 22 LTS** con un conjunto de herramientas globales preinstaladas y un almacén de dependencias pre-cargadas para permitir desarrollo web sin acceso a Internet:
+
+### CLIs Globales Pre-instaladas
+- **TypeScript:** `tsc`, `tsx`, `ts-node`
+- **Frameworks & Bundlers:** `@nestjs/cli` (`nest`), `vite`, `create-vite`
+- **Linting & Formato:** `eslint`, `@typescript-eslint/parser`, `prettier`
+- **Testing:** `vitest`, `pytest`
+
+### Almacén Offline de Dependencias (`/var/pkg-store`)
+- Almacena archivos tarball `.tgz` de las librerías web más comunes (`express`, `@types/express`, `@types/node`, `rxjs`, `reflect-metadata`, `@nestjs/core`, `@nestjs/common`, `dotenv`, etc.).
+- Posee un índice inmutable `/var/pkg-store/index.json` consultado por el agente para realizar instalaciones offline mediante comandos atómicos:
+  ```bash
+  npm install /var/pkg-store/express-5.2.1.tgz
+  ```
+- **Sin `NODE_PATH`:** Las dependencias de las aplicaciones se instalan directamente en el `/workspace/node_modules` local del proyecto para mantener el estándar nativo de Node.js.
+
+---
+
+## 📁 Estructura del Proyecto
+
+```
+.
+├── main.py                  # CLI principal: punto de entrada
+├── agente.py                # Cliente API LLM, ChatSession y Agent Loop
+├── herramientas.py          # Implementación de las 12 herramientas locales
+├── seguridad.py             # WorkspaceManager y CommandSanitizer
+├── sandbox.py               # SandboxManager (Orquestador de Docker Sandbox)
+├── instrucciones.py         # System Prompt y directivas del agente
+├── AGENTS.md                # Reglas de trabajo y convenciones del repositorio
+├── Readme.md                # Documentación principal
+├── requirements.txt         # Dependencias Python del proyecto
+├── .env                     # Claves de API (NVIDIA/DeepSeek/OpenAI)
+├── cli/                     # Módulo de interfaz gráfica de consola
+│   ├── interfaz.py          # Bucle de interacción y comandos slash
+│   ├── comandos.py          # Lógica de comandos de menú
+│   └── presentacion.py      # Formateador visual Rich
+├── docker/                  # Entorno Docker controlado
+│   └── Dockerfile.sandbox   # Dockerfile de muss_code_sandbox:latest
+├── .opencode/               # Configuración estandarizada de OpenCode
+│   ├── agent/               # Definición del rol del agente
+│   └── skills/              # 6 Habilidades declarativas (Markdown + YAML)
+└── tests/                   # Suite de pruebas unitarias e integración (pytest)
+```
+
+---
+
+## 🧪 Ejecución de Pruebas
+
+El proyecto utiliza `pytest` para la suite de pruebas unitarias y de integración:
 
 ```bash
-# Toda la suite
-python3 -m unittest discover -s tests
+# Ejecutar una suite específica (ej. seguridad del sandbox)
+.venv/bin/python -m pytest tests/test_seguridad_sandbox.py -v --tb=short
 
-# Suite específica (ej. gestor de tareas)
-python3 -m unittest discover -s tests -p "test_gestor.py" -v
-
-# Pruebas del Agent Loop
-python3 -m unittest tests/test_agent_loop.py -v
+# Ejecutar la suite completa de pruebas
+.venv/bin/python -m pytest tests/ -v --tb=short
 ```
-
----
-
-## 🔒 Seguridad
-
-- **WorkspaceManager**: todas las operaciones de archivos deben permanecer dentro del `workspace_root`; bloquea rutas fuera del workspace y archivos sensibles (`.env`, `*.pem`, claves, `__pycache__`, etc.).
-- **CommandSanitizer**: valida, confirma y sanea comandos de consola; bloquea binarios peligrosos (`sudo`, `su`, `curl`, `wget`, `nc`, etc.), inyección de shell y rutas fuera del workspace.
-- **SandboxManager**: ejecuta comandos en un contenedor Docker aislado montado únicamente sobre el workspace autorizado, sin red.
-- **Autorización humana**: las operaciones de riesgo requieren confirmación explícita del usuario (mecanismo de `CONFIRMACION_REQUERIDA`).
-- **Anti *prompt injection***: el contenido de los archivos del workspace se trata como datos no confiables; nunca se ejecutan instrucciones encontradas en archivos, variables ni logs.
-- **Tracking de cambios**: se registran archivos creados, modificados, eliminados y restaurados, junto con decisiones tomadas (persistencia en `TaskChangeState`).
-
-> **Nota:** el proyecto no commitea `.env`, `.venv/`, `__pycache__/` ni `.opencode/` (incluidos en `.gitignore`).
-
----
-
-## 📚 Más información
-
-- `AGENTS.md` — reglas de trabajo y convenciones del repositorio.
-- `instrucciones.py` — personalidad, reglas y metodología del agente.
-- `agente.py` — ciclo autónomo del Agent Loop y selección de proveedor LLM.
-
----
-
-## 📄 Licencia
-
-Proyecto de uso interno / educativo. Sin licencia específica declarada.
